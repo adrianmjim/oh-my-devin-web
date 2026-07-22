@@ -1,0 +1,36 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Oh My Devin",
+  "colors": {
+    "primary": "#2e8555",
+    "light": "#25c2a0",
+    "dark": "#2e8555"
+  },
+  "favicon": "/favicon.ico",
+  "logo": {
+    "light": "/logo.svg",
+    "dark": "/logo.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "type": "github",
+        "href": "https://github.com/adrianmjim/oh-my-devin-web"
+      }
+    ]
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Get started",
+        "pages": ["index", "docs/installation"]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/adrianmjim/oh-my-devin-web"
+    }
+  }
+}

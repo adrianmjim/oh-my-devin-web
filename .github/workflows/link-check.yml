@@ -1,0 +1,17 @@
+name: Link check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  broken-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+      - name: Check for broken links
+        run: npx --yes mint@4.2.729 broken-links

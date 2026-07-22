@@ -1,30 +1,35 @@
 # Oh My Devin — website
 
 The public website for Oh My Devin: a landing page and the product
-documentation. Built with [Docusaurus](https://docusaurus.io/) and deployed to
-GitHub Pages.
+documentation. Authored as [Mintlify](https://mintlify.com/) content and
+hosted on the Mintlify platform.
+
+The site is a single Mintlify site: the landing page at `/` (a `custom` layout
+page) and the product documentation alongside it. Its structure lives in
+`docs.json`; pages are MDX.
 
 ## Requirements
 
-- Node.js >= 22.14
-- pnpm (development only)
+- Node.js >= 22.14 (only to run the Mintlify CLI ad hoc; nothing is installed
+  as a project dependency)
 
-## Development
+## Local preview
 
-Development, build, and dependency management run on pnpm at the version pinned
-in `package.json` (`packageManager`). Every direct dependency is pinned to an
-exact version and the generated lockfile is not committed.
+The repository carries no dependency manifest. Invoke the Mintlify CLI ad hoc
+at the pinned version — `mint@4.2.729`:
 
 ```bash
-pnpm install
-pnpm start   # local dev server
-pnpm build   # static production build into build/
+npx mint@4.2.729 dev            # local preview at http://localhost:3000
+npx mint@4.2.729 broken-links   # verify internal links resolve
 ```
 
 ## Deployment
 
-Pushes to `main` build the site and publish it to GitHub Pages through the
-workflow in `.github/workflows/deploy.yml`.
+The Mintlify platform builds the site from this repository and redeploys on
+every push to `main` — there is no build or deploy tooling in the repository.
+Link integrity is enforced before merge by `.github/workflows/link-check.yml`,
+which runs `mint broken-links` at the pinned CLI version on pull requests and
+pushes to `main`.
 
 ## License
 
