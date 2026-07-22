@@ -1,23 +1,10 @@
-# Dependencies
+# Mintlify CLI local artifacts (the CLI is invoked ad hoc, never installed here)
 /node_modules
-
-# Generated lockfile (dependencies are exact-pinned in package.json)
-/pnpm-lock.yaml
-
-# Production
-/build
-
-# Generated files
-.docusaurus
-.cache-loader
+.mint/
+.mintlify/
 
 # Misc
 .DS_Store
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+*.log
