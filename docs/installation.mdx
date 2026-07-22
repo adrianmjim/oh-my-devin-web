@@ -1,5 +1,72 @@
 ---
 title: "Installation"
+description: "Build omd from source and verify your environment with omd doctor."
 ---
 
-Placeholder page. Installation instructions for Oh My Devin will live here.
+<Info>
+  Oh My Devin is an early implementation and is not yet published to a package
+  registry. You build the `omd` CLI from source.
+</Info>
+
+## Prerequisites
+
+- **Node.js 22.14 or later.** `omd doctor` fails on older runtimes.
+- **The Devin CLI**, installed, authenticated, and available on your `PATH`.
+  `omd` targets Devin CLI `3000.1.27`; a different version is reported as a
+  warning by `omd doctor`, not an error.
+- **git.** Team and council runs execute each stage in its own git worktree, so
+  the projects you orchestrate must be git repositories.
+
+## Build from source
+
+Clone the repository and build the CLI:
+
+```bash
+git clone https://github.com/adrianmjim/oh-my-devin.git
+cd oh-my-devin
+corepack enable
+pnpm install
+pnpm build
+```
+
+The repository pins its package manager in `package.json`, so with corepack
+enabled the matching pnpm version is selected automatically. The build writes
+the executable entry point to `dist/cli.js`.
+
+## Put omd on your PATH
+
+Link the built package globally to get the `omd` binary:
+
+```bash
+pnpm link --global
+```
+
+If you prefer not to link, invoke the entry point directly:
+
+```bash
+node /path/to/oh-my-devin/dist/cli.js doctor
+```
+
+## Verify the environment
+
+```bash
+omd doctor
+```
+
+`omd doctor` runs five checks against the local runtime contract and prints one
+line per check in the form `[pass|warn|fail] <check>: <message>`:
+
+| Check | What it verifies |
+| ----------------- | ------------------------------------------------------------------ |
+| `devin-cli` | A `devin` executable is on your `PATH` |
+| `devin-version` | The installed version matches the pinned `3000.1.27` (drift warns) |
+| `agent-config` | The engine accepts a compiled `--agent-config` bundle |
+| `headless-surface` | `devin list --format json` returns the expected machine-readable shape |
+| `node-runtime` | Node.js is 22.14 or later |
+
+The command exits non-zero only when at least one check fails; warnings alone
+leave the exit code at `0`.
+
+<Card title="Quickstart" icon="rocket" href="/docs/quickstart" horizontal>
+  Install the in-session layer into a project and run your first role.
+</Card>

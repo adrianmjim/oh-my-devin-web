@@ -1,0 +1,98 @@
+---
+title: "Teams"
+description: "Declarative pipelines of roles — architect, executor, reviewer — with isolated stages, structured handoffs, and a human gate between every stage."
+---
+
+A team turns individual roles into a pipeline. You declare the composition once
+as a YAML manifest and run it with `omd team run <team> "<task>"`. The current
+pipeline is the fixed three-stage sequence **architect → executor → reviewer**:
+one role instance per stage, each in its own git worktree, with a binary human
+gate after every stage.
+
+## Declaring a team
+
+A team lives at `.devin/teams/<name>.yaml`:
+
+```yaml .devin/teams/feature.yaml
+name: feature
+members:
+  - role: architect
+    count: 1
+  - role: executor
+    count: 1
+  - role: reviewer
+    count: 1
+workflow:
+  architect:
+    then: executor
+  executor:
+    then: reviewer
+  reviewer:
+    on_passed: done
+```
+
+Members reference roles from the project's catalog. The workflow maps each
+stage to its successors: `then` for the unconditional next stage,
+`on_passed`, `on_blocked`, and `on_bankrupt` for outcome-dependent routing,
+and the literal `done` as the terminal successor. The first member's role is
+the entry stage and must be `architect`, `executor`, or `reviewer`.
+
+## Handoffs
+
+Stages are isolated sessions; context crosses a stage boundary only through a
+closed set of handoff artifacts:
+
+| Artifact | Produced by | Visible to |
+| ------------------------------ | ----------- | ------------------------------ |
+| `requirements` | you | all three stages |
+| `architecture.json` | architect | executor only |
+| the diff and `evidence.json` | executor | reviewer |
+| `review.json` | reviewer | the terminal human gate |
+
+`requirements` is your task string, prepended to the contents of an optional
+`requirements.md` at the project root. There is no project-manager stage:
+requirements reach the architect exactly as you authored them.
+
+The reviewer's independence is structural. It receives the requirements, the
+final diff, and the executor's evidence — never the architect's design
+rationale, the executor's reasoning, or any intermediate attempt.
+
+## Human gates
+
+After each successful stage, `omd` presents the stage result and prompts:
+
+```text
+Approve this stage? [approve/reject]
+```
+
+`approve` (or `a`, `y`, `yes`) follows the stage's `then`/`on_passed`
+transition; `reject` (or `r`, `n`, `no`) follows `on_blocked` — for a
+reviewer, that routes work back to the executor as a fresh run. Any other
+answer, or end of input, halts the pipeline. Answer the gate interactively at
+the prompt; input piped ahead of the prompt is not reliably consumed.
+
+## Isolation and integration
+
+Every stage runs in its own worktree under `.omd/worktrees/`, checked out from
+the repository's `HEAD` — commit the state you want the team to see before
+running. The executor's diff is captured before its worktree is torn down;
+integrating it into your mainline stays a human, diff-mediated decision. A team
+run never creates a remote pull request.
+
+## Outcomes
+
+A pipeline ends as `succeeded` (exit `0`) when a path reaches `done`, or
+`halted` (exit `1`) on a stage failure, a rejected gate with no transition, or
+an unanswered gate. The report lists each stage with its result and gate
+decision; `--json` emits `team`, `task`, `outcome`, `exitCode`, `haltedAt`,
+and a `stages` array.
+
+<Note>
+  `count` and `strategy` are validated in the manifest, but execution today
+  runs one instance per stage; multi-instance fan-out is reserved for a future
+  release.
+</Note>
+
+<Card title="Team definition reference" icon="book" href="/docs/reference/team-definition" horizontal>
+  Every manifest key, its constraints, and the workflow vocabulary.
+</Card>

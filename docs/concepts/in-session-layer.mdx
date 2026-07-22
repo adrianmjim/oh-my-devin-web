@@ -1,0 +1,79 @@
+---
+title: "The in-session layer"
+description: "Rules, skills, and hooks installed into a project so a live Devin session can delegate contractual work to omd."
+sidebarTitle: "In-session layer"
+---
+
+Oh My Devin has two lanes. The contractual lane is the `omd` CLI itself — runs,
+teams, councils, each with enforced contracts and verifiable outcomes. The
+conversational lane is the ordinary interactive Devin session you already work
+in. The in-session layer is the bridge: a set of files installed into the
+project that lets a live session delegate work to the contractual lane and hold
+itself to a declared mode of working.
+
+## What omd setup installs
+
+`omd setup` installs the layer in a single invocation; `--scope=<parts>`
+restricts it to a comma-separated subset of `rules,roles,skills,hooks`.
+
+| Component | Files |
+| --------- | ------------------------------------------------------------------ |
+| `rules` | `AGENTS.md` — always-on rules at the project root |
+| `roles` | `.devin/agents/reviewer/AGENT.md` and `.devin/schemas/review.schema.json` — an example role |
+| `skills` | `.devin/skills/omd-delegate/SKILL.md` and one skill per mode |
+| `hooks` | `.devin/hooks.v1.json` and `.devin/hooks/omd-mode.mjs` |
+
+<Warning>
+  Setup writes unconditionally: an existing `AGENTS.md` or any other colliding
+  file is overwritten. Run it on a clean working tree and review the diff.
+</Warning>
+
+## Delegation
+
+The `omd-delegate` skill is the hinge between the lanes: it lets the session
+hand a task to a role by invoking `omd run <role> "<task>"` without a
+permission prompt. The session keeps the conversation; the role does the work
+under its enforced contract and returns a validated artifact.
+
+## Modes
+
+Six mode skills ship with the layer. A mode is a declared way of working the
+session commits to, not a different engine:
+
+| Mode | What it commits the session to |
+| ----------- | ------------------------------------------------------------------ |
+| `autopilot` | Run the team pipeline under an automatic gate policy |
+| `ralph` | Grind a single role through `omd run` and its validate-repair loop |
+| `team` | Run the declared team through the three-stage pipeline |
+| `plan` | Produce a plan artifact before implementation begins |
+| `verify` | Check an artifact against its contract and record evidence |
+| `deep-dive` | Read-only investigation — no writes, no delegation |
+
+Two honest caveats about the current release: the automatic gate policy behind
+`autopilot` is not yet fixed, so it behaves as the human-gated pipeline; and
+`plan` and `verify` set persistent guidance for the session without a dedicated
+`omd` primitive wired underneath yet.
+
+## Persistent mode state
+
+`omd mode set <mode>` records the active mode in `.omd/mode.json`;
+`omd mode clear` removes it. The installed hooks read that state on every
+prompt: they inject the active mode's context into the session, and the stop
+hook holds the session open until the mode's verification criteria are met —
+a session in `team` mode does not stop until a pipeline terminal outcome is
+reported.
+
+`deep-dive` is the one mode without persistent state: it is a skill only, and
+`omd mode set deep-dive` is rejected.
+
+## Distributing the layer as a plugin
+
+`omd plugin build [--out <dir>]` packages the rules and skills half of the
+layer as an installable Devin plugin bundle — a `.devin-plugin/plugin.json`
+manifest, the `AGENTS.md` rules, and the skills — written to `.omd/plugin` by
+default. Use it to distribute the layer through the engine's plugin channel
+instead of committing setup output into each project.
+
+<Card title="CLI reference" icon="terminal" href="/docs/reference/cli" horizontal>
+  Synopsis and flags for `omd setup`, `omd plugin build`, and `omd mode`.
+</Card>

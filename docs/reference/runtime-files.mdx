@@ -1,0 +1,72 @@
+---
+title: "Runtime files"
+description: "Everything omd writes at runtime under .omd/ — mode state, decision records, worktrees — and the serialization conventions it follows."
+---
+
+`omd` keeps its runtime state under `.omd/` in the project root. The directory
+is transient orchestrator state, not project content.
+
+<Tip>
+  Add `.omd/` to your `.gitignore`.
+</Tip>
+
+```text
+.omd/
+├── mode.json                        Persistent mode state
+├── deliberations/
+│   └── <question-slug>-<timestamp>/
+│       └── decision.json            One record per council closure
+├── worktrees/
+│   └── <instance>/                  Transient per-stage / per-seat checkouts
+└── plugin/                          Default output of omd plugin build
+```
+
+All JSON that `omd` serializes uses camelCase field names. YAML that you
+author — roles, teams, councils — uses snake_case keys.
+
+## mode.json
+
+Written by `omd mode set`, removed by `omd mode clear`, read by the installed
+session hooks on every prompt:
+
+```json .omd/mode.json
+{
+  "mode": "team",
+  "context": "team mode active: run the declared team through the fixed three-stage pipeline.",
+  "verification": ["pipeline terminal outcome reported"]
+}
+```
+
+## decision.json
+
+Every council closure writes one decision record under
+`.omd/deliberations/<id>/`, where `<id>` is a slug of the question plus a
+timestamp. Its fields:
+
+- `question` — the deliberated question.
+- `proposal` and `proposalSource` — the final proposal text and whether it was
+  `attached` or drafted by the `proposer` seat.
+- `consent` — the closure: `passed`, `blocked`, or `bankrupt`.
+- `authorityApplied` — the authority policy that governed the closure.
+- `supportingArguments` — each with `id`, `claim`, and an `endorsements`
+  count from echo collapse.
+- `objections` — the complete ledger: `seat`, `domain`, `severity`,
+  `concern`. Dissent is always carried, including below-threshold objections.
+- `assumptions` — what the decision rests on.
+- `reconsiderWhen` — conditions under which the decision should be reopened.
+- `humanDecisionRequired` — whether the closure escalated to a human.
+
+## Worktrees
+
+Team stages and council seats each run in a dedicated git worktree under
+`.omd/worktrees/`, checked out detached from the repository's `HEAD`. Council
+worktrees are removed when the deliberation closes; team stage worktrees live
+for the duration of the pipeline, and the executor's diff is captured before
+teardown.
+
+## Outside the project
+
+Per-invocation compiled contract bundles and doctor probes are written to the
+operating system's temporary directory (`omd-bundle-*`, `omd-doctor-*`) and
+removed when the command finishes. Nothing else is written outside the project
+directory.

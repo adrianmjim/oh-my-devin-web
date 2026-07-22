@@ -1,0 +1,70 @@
+---
+title: "Team definition"
+description: "Every key of a team manifest: members, workflow transitions, and the constraints omd validates before any session starts."
+---
+
+A team is one YAML manifest at `.devin/teams/<name>.yaml`. A malformed
+manifest is rejected as a usage error before any session starts.
+
+## Keys
+
+| Key | Required | Type | Meaning |
+| ---------- | -------- | -------------- | ------------------------------------------ |
+| `name` | yes | string | The team's name |
+| `members` | yes | non-empty list | The pipeline's stages, in order |
+| `workflow` | yes | mapping | Transitions between stages |
+
+### Members
+
+Each member declares:
+
+| Key | Required | Type | Meaning |
+| ---------- | ----------------------- | ---------------------------- | ----------------------------------- |
+| `role` | yes | string | A role discovered in the project's catalog |
+| `count` | yes | positive integer | Instances of the role |
+| `strategy` | only when `count` > 1 | `parallel` \| `independent` | How multiple instances relate; must be omitted when `count` is 1 |
+
+The first member's role is the pipeline's entry stage and must be
+`architect`, `executor`, or `reviewer`.
+
+### Workflow
+
+`workflow` maps each stage to its transitions. Valid transition keys:
+
+- `then: <successor>` — unconditional next stage.
+- `on_passed`, `on_blocked`, `on_bankrupt` — outcome-dependent successors,
+  using the gate vocabulary: an approved gate follows `then`/`on_passed`, a
+  rejected gate follows `on_blocked`.
+- The literal successor `done` terminates the pipeline as `succeeded`.
+
+An unknown successor or transition key is a parse error.
+
+## Example
+
+```yaml .devin/teams/feature.yaml
+name: feature
+members:
+  - role: architect
+    count: 1
+  - role: executor
+    count: 1
+  - role: reviewer
+    count: 1
+workflow:
+  architect:
+    then: executor
+  executor:
+    then: reviewer
+  reviewer:
+    on_passed: done
+```
+
+## Related inputs
+
+An optional `requirements.md` at the project root is combined with the task —
+task first — into the `requirements` handoff artifact given to every stage.
+
+<Note>
+  `count` and `strategy` are validated but not yet exercised: the pipeline
+  currently runs one instance per stage.
+</Note>

@@ -16,7 +16,7 @@
     "links": [
       {
         "type": "github",
-        "href": "https://github.com/adrianmjim/oh-my-devin-web"
+        "href": "https://github.com/adrianmjim/oh-my-devin"
       }
     ]
   },
@@ -24,13 +24,33 @@
     "groups": [
       {
         "group": "Get started",
-        "pages": ["index", "docs/installation"]
+        "pages": ["docs/overview", "docs/installation", "docs/quickstart"]
+      },
+      {
+        "group": "Concepts",
+        "pages": [
+          "docs/concepts/roles",
+          "docs/concepts/runs",
+          "docs/concepts/teams",
+          "docs/concepts/councils",
+          "docs/concepts/in-session-layer"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "docs/reference/cli",
+          "docs/reference/role-definition",
+          "docs/reference/team-definition",
+          "docs/reference/council-declaration",
+          "docs/reference/runtime-files"
+        ]
       }
     ]
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/adrianmjim/oh-my-devin-web"
+      "github": "https://github.com/adrianmjim/oh-my-devin"
     }
   }
 }

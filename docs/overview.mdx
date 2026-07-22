@@ -1,0 +1,75 @@
+---
+title: "What is Oh My Devin"
+description: "An organizational layer that turns local Devin CLI sessions into an organization of agents with roles, teams, and councils."
+sidebarTitle: "Overview"
+---
+
+Oh My Devin (`omd`) is an organizational layer on top of the Devin CLI. It turns
+local Devin sessions into an organization of agents: functional **roles**,
+declarative **teams**, and deliberative **councils**. The Devin CLI supplies the
+execution engine; `omd` adds the orchestrator, the organizational structure, and
+the protocols — role contracts, context isolation, and verifiable gates.
+
+A single long session has no first-class model for reusable functional roles,
+stable team compositions, structured handoffs, context separation between
+stages, independent review, or gates that stop progress until there is
+evidence. Oh My Devin adds exactly that model, without replacing the engine
+underneath.
+
+## How it works
+
+Every unit of work runs as its own headless Devin session, launched and
+supervised by `omd` from your terminal. A role is an enforced configuration
+bundle — tools, permissions, model, and a validated output artifact — compiled
+per invocation and passed to the engine, so the contract holds even when the
+model ignores its instructions. Work crosses a role boundary only through
+explicitly handed artifacts, never through shared conversation history.
+
+```text
+omd — an organizational layer over the Devin CLI
+
+Usage:
+  omd run <role> "<task>" [--json]   Run a role against a task end to end
+  omd doctor                         Check the local runtime contract
+  omd roles list [--json]            List the project's roles
+  omd roles show <role> [--json]     Show a role's expanded contract
+  omd setup [--scope=<parts>]        Install the in-session layer (parts: rules,roles,skills,hooks)
+  omd plugin build [--out <dir>]     Build the installable devin plugin bundle
+  omd team run <team> "<task>"       Run a team pipeline (architect → executor → reviewer)
+  omd council run <c> "<question>"   Run a deliberation council [--proposal <path>] [--then <team>] [--sign] [--json]
+  omd mode <set|clear> [<mode>]      Set or clear the persistent mode state read by the session hooks
+```
+
+## The building blocks
+
+<Columns cols={3}>
+  <Card title="Roles" icon="id-badge" href="/docs/concepts/roles">
+    A reusable, enforced contract: one output artifact, a schema it must
+    satisfy, a tool and permission surface, and a budget.
+  </Card>
+  <Card title="Teams" icon="users" href="/docs/concepts/teams">
+    A declared pipeline of roles — architect, executor, reviewer — with
+    isolated stages, structured handoffs, and a human gate between every
+    stage.
+  </Card>
+  <Card title="Councils" icon="scale-balanced" href="/docs/concepts/councils">
+    Structured deliberation across independent seats: typed objections,
+    consent-based closure, and a decision record that carries dissent.
+  </Card>
+</Columns>
+
+## What it is not
+
+Oh My Devin is not a Devin replacement and not another session engine. It runs
+the `devin` CLI you already use, locally, and stays out of the way of your
+normal interactive sessions. The organizational layer is opt-in per project.
+
+## Status
+
+Oh My Devin is an early implementation. It is not yet published to a package
+registry — you build it from source — and its surface may change between
+releases.
+
+<Card title="Install omd" icon="download" href="/docs/installation" horizontal>
+  Build the CLI from source and verify your environment with `omd doctor`.
+</Card>

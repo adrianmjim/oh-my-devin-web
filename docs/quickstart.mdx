@@ -1,0 +1,97 @@
+---
+title: "Quickstart"
+description: "Install the in-session layer into a project, check the runtime contract, and run your first role."
+---
+
+This walkthrough takes an existing project from zero to a completed single-role
+run. It assumes you have [installed omd](/docs/installation).
+
+<Steps>
+  <Step title="Install the in-session layer">
+    From the root of a project that is a git repository:
+
+    ```bash
+    omd setup
+    ```
+
+    `omd setup` writes the in-session layer into the project: an `AGENTS.md`
+    rules file, an example `reviewer` role with its output schema, the
+    delegation skill, six mode skills, and the session hooks, then lists every
+    file it wrote.
+
+    <Warning>
+      `omd setup` writes its files unconditionally: an existing `AGENTS.md` (or
+      any other colliding file) is overwritten. Run it on a clean working tree
+      and review the diff before committing.
+    </Warning>
+  </Step>
+  <Step title="Check the runtime contract">
+    ```bash
+    omd doctor
+    ```
+
+    Every line should read `[pass]`. A `[warn]` on `devin-version` means your
+    Devin CLI differs from the pinned `3000.1.27` — runs still work, but
+    behavior is only verified against the pin.
+  </Step>
+  <Step title="Inspect the role catalog">
+    ```bash
+    omd roles list
+    ```
+
+    The catalog now contains the example role installed by setup. Print its
+    expanded contract — tools, permissions, artifact, schema, and budget:
+
+    ```bash
+    omd roles show reviewer
+    ```
+  </Step>
+  <Step title="Run the role">
+    ```bash
+    omd run reviewer "Review the pending changes and record your verdict"
+    ```
+
+    `omd` compiles the role's contract, opens a headless Devin session, lets it
+    work within its budget, validates the artifact the role must produce —
+    `review.json`, against `.devin/schemas/review.schema.json` — and reports
+    the outcome:
+
+    ```text
+    omd run — success
+    role: reviewer
+    task: Review the pending changes and record your verdict
+    engine: devin
+    artifact: review.json (valid)
+    turns: 2/6
+    outcome: success
+    ```
+
+    <Note>
+      Runs execute against the real Devin CLI and spend Devin quota.
+    </Note>
+  </Step>
+  <Step title="Read the result">
+    The role's only writable path is its declared artifact, so the outcome of
+    the run is the validated `review.json`. Add `--json` to any supporting
+    command or to the run itself for a machine-readable report.
+  </Step>
+</Steps>
+
+<Tip>
+  `omd` keeps its runtime state — mode state, decision records, worktrees —
+  under `.omd/` in the project root. Add `.omd/` to your `.gitignore`.
+</Tip>
+
+## Next steps
+
+<Columns cols={3}>
+  <Card title="Define your own role" icon="id-badge" href="/docs/concepts/roles">
+    Author an `AGENT.md` with a contract fitted to your workflow.
+  </Card>
+  <Card title="Run a team" icon="users" href="/docs/concepts/teams">
+    Chain architect, executor, and reviewer with human gates between stages.
+  </Card>
+  <Card title="Convene a council" icon="scale-balanced" href="/docs/concepts/councils">
+    Put a decision through structured deliberation before work starts.
+  </Card>
+</Columns>

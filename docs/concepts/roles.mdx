@@ -1,0 +1,92 @@
+---
+title: "Roles"
+description: "A role is an enforced contract — tools, permissions, model, and a validated output artifact — not a prompt convention."
+---
+
+A role is the unit of delegation in Oh My Devin. It is defined once, discovered
+by name, and executed with `omd run <role> "<task>"`. What makes a role more
+than a saved prompt is that its contract is compiled and enforced by the engine
+on every invocation: the tool surface, the permission rules, the model, and the
+single artifact it is allowed to produce.
+
+## Where roles live
+
+Each role is exactly one Markdown file with YAML frontmatter:
+
+```text
+.devin/agents/<role-name>/AGENT.md
+```
+
+The role's name is the directory name. The frontmatter declares the contract;
+the Markdown body after it is the role's prompt. The example role installed by
+`omd setup`:
+
+```mdx .devin/agents/reviewer/AGENT.md
+---
+allowed-tools:
+  - read
+  - grep
+  - create
+  - edit
+permissions:
+  allow:
+    - "Write(review.json)"
+omd-output: review.json
+omd-schema: .devin/schemas/review.schema.json
+omd-max-turns: 6
+omd-context: isolated
+---
+
+You are the reviewer. Assess the diff against the requirements and write
+your verdict to review.json.
+```
+
+## The contract, piece by piece
+
+### Output artifact and schema
+
+`omd-output` names the one file the role must produce; `omd-schema` points to
+the JSON Schema it is validated against. After the session, `omd` validates the
+artifact strictly — a missing file or a non-conforming document is equally
+invalid. Validation is what makes a run's success observable rather than
+asserted.
+
+### Write confinement
+
+A role may write only its declared artifact. `omd` grants the
+`Write(<artifact>)` permission automatically if the role does not declare it,
+and rejects a role that allows writes to any other path. Attempted writes
+outside the artifact are refused by the engine without failing the session;
+`deny` rules are different — they are red lines whose violation aborts the run.
+
+### Tools and permissions
+
+`allowed-tools` restricts the engine's tool surface for the role.
+`permissions` carries `allow`, `deny`, and `ask` lists of rules in
+`Verb(pattern)` form, enforced by the engine itself through the compiled
+configuration bundle — not by prompt discipline.
+
+### Budgets
+
+`omd-max-turns` caps the number of session turns, including the repair turn.
+`omd-wall-time` optionally caps total duration; it is evaluated between turns,
+so a single long turn is never interrupted mid-flight. Exhausting either budget
+ends the run as a budget failure.
+
+### Context and model
+
+`omd-context` is `isolated` by default: each role instance runs in its own
+Devin session and shares nothing implicitly. `model` selects the engine model
+for this role; there is no per-run override, so cost tiering is a property of
+the role, not of the invocation.
+
+## Discovery
+
+`omd roles list` scans the catalog and prints one line per role; a role that
+fails to parse is reported on stderr without hiding the valid ones.
+`omd roles show <role>` prints the expanded contract exactly as it will be
+enforced.
+
+<Card title="Role definition reference" icon="book" href="/docs/reference/role-definition" horizontal>
+  Every frontmatter key, its type, default, and validation rules.
+</Card>
