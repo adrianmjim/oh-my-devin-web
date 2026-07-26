@@ -47,6 +47,76 @@ while still letting you follow the work.
   still deferred.
 </Card>
 
+## What happens when a session delegates
+
+The important thing to understand is that `omd` does not steer the session you
+are talking to. It starts **another one**.
+
+```text
+your Devin session  (conversational lane)
+  │
+  │  skill runs: omd run reviewer "..." --detach
+  ▼
+omd  (a subprocess — an ordinary CLI, not part of the session)
+  │
+  │  compiles the role contract to a temporary agent-config bundle
+  │  spawns: devin -p "<task>" --agent-config <bundle>
+  ▼
+role session  (contractual lane — separate session, enforced contract)
+```
+
+Step by step:
+
+1. **The skill shells out.** Each bridging skill declares `Exec(omd)` in its
+   permissions, and that is the whole bridge. `omd` must be on your `PATH`; if
+   it is not, nothing else in the layer works.
+2. **`omd` compiles the contract.** The role's tools, permissions, and prompt
+   become a temporary agent-config file — a declarative bundle of system
+   instructions, tool visibility, and permissions — written outside the project
+   and deleted when the run ends.
+3. **`omd` opens the role's session.** It invokes the `devin` CLI in
+   non-interactive mode with that bundle attached. This is a second session with
+   its own contract, not a continuation of yours.
+4. **Turns resume that session.** Each turn is one non-interactive invocation,
+   resumed so the role's memory carries across turns, up to its
+   `omd-max-turns` budget.
+5. **Only the snapshot comes back.** Your session follows the run through
+   `omd status`, which reports state, stage, turn counters, and validation —
+   never the role session's transcript.
+
+<Note>
+  The role session spends Devin quota of its own, using the same `devin` CLI
+  credentials you are already authenticated with. A delegated run is not free
+  because the outer session was already open.
+</Note>
+
+### Session identity follows the working directory
+
+Before its first turn, `omd` asks the `devin` CLI which sessions exist in the
+run's working directory. If it finds one, it resumes it; otherwise it starts a
+fresh session and adopts the id afterwards.
+
+That has a practical consequence: run one `omd` role run per directory at a
+time, so the session it picks up is unambiguous. Team stages and council seats
+are unaffected — each runs in its own git worktree, which is a different
+directory and therefore a different session identity.
+
+### Where this applies
+
+None of this is specific to the terminal. Devin Local in Devin Desktop runs the
+same agent harness and reads the same installed layer, so a delegation from a
+Desktop session follows the same path — the skill shells out to `omd`, and
+`omd` opens the role's session through the `devin` CLI.
+
+<Card
+  title="Devin Desktop"
+  icon="desktop"
+  href="/docs/concepts/devin-desktop"
+  horizontal
+>
+  Which surfaces the layer reaches, and which it does not.
+</Card>
+
 ## Session hooks
 
 The `hooks` component registers exactly three events, each running the same

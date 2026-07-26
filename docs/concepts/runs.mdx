@@ -33,8 +33,13 @@ A run that hits a deny rule skips validation and repair entirely.
 
 Each turn is one non-interactive invocation of the Devin CLI — `devin -p` with
 the compiled `--agent-config` bundle, resumed with `--resume` so session memory
-carries across turns. Sessions are namespaced by working directory, so run one
-`omd` session per directory at a time to keep session identity unambiguous.
+carries across turns.
+
+The session `omd` opens is separate from any session you are working in, and it
+is identified by its working directory. See
+[What happens when a session delegates](/docs/concepts/in-session-layer#what-happens-when-a-session-delegates)
+for the full path, including what that means when the run is launched from
+inside a Devin session.
 
 ## Failure tiers
 
