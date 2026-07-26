@@ -18,8 +18,10 @@ Devin Desktop shares with the Devin CLI. Because it is the same harness, it
 reads the same configuration dialect: `AGENTS.md` rules and `SKILL.md` skills,
 discovered the same way.
 
-Cascade is the other agent, and it reads a different dialect. `omd` does not
-target it.
+Cascade is the other agent, and it reads a different dialect. It scans
+`.windsurf/skills/`, `~/.codeium/windsurf/skills/`, and the cross-agent
+`.agents/skills/` and `.claude/skills/` directories — not `.devin/skills/`. So
+an `omd` install is invisible to Cascade, and `omd` does not target it.
 
 ## What applies under Devin Local
 
@@ -28,13 +30,20 @@ applies wherever that configuration is discovered.
 
 Devin's own documentation puts the user-level configuration at
 `~/.config/devin/config.json`, with global rules alongside it at
-`~/.config/devin/AGENTS.md`. That is exactly where `omd setup --level=user`
-writes — the rules file, the roles and their schemas, and the eight skills. A
+`~/.config/devin/AGENTS.md` and global skills at `~/.config/devin/skills/`.
+That is exactly where `omd setup --level=user` writes — the rules file, the
+roles and their schemas, and the eight skills. A
 [user-level install](/docs/concepts/layer-installation) is therefore discovered
 by Devin Local without anything Desktop-specific.
 
 Project-level installs apply the same way: `AGENTS.md` and `.devin/` in the
 project root are discovered by the shared harness.
+
+So the ordinary path works in Desktop: run `omd setup` in the terminal, open
+the project in Devin Desktop with Devin Local selected, and describe what you
+want — the session matches your request against the installed skills and
+delegates through `omd`. See [Skills](/docs/concepts/skills) for how invocation
+works.
 
 Two things are needed for the layer to do more than describe itself:
 
@@ -53,8 +62,11 @@ Two things are needed for the layer to do more than describe itself:
 
 ## The plugin channel
 
-`omd plugin build` produces a Devin plugin — the user-level, cross-project way
-to carry the skills without installing into each project.
+`omd plugin build` produces a Devin plugin. It is an alternative to
+`omd setup --level=user`, not a requirement for Desktop: both put the skills
+where every project can reach them. The difference is who manages them — the
+plugin is installed, listed, and updated through `devin plugins`, which suits
+sharing the skills with other people or pinning them to a published source.
 
 ```bash
 omd plugin build
@@ -88,8 +100,11 @@ so on. Use `devin plugins list`, `devin plugins update`, and
 
 ## Choosing a channel
 
-| You want | Use |
-| ------------------------------------------- | ----------------------------- |
-| The full layer in one project, in version control | `omd setup` |
-| The full layer for every session you start | `omd setup --level=user` |
-| Just the skills, across projects, managed by Devin | `omd plugin build` + `devin plugins install` |
+| You want | Use | Reaches |
+| ------------------------------------------- | ----------------------------- | ------------------- |
+| The full layer in one project, in version control | `omd setup` | Devin CLI, Devin Local |
+| The full layer for every session you start | `omd setup --level=user` | Devin CLI, Devin Local |
+| Just the skills, across projects, managed by Devin | `omd plugin build` + `devin plugins install` | Devin CLI, Devin Local |
+
+All three reach the same two surfaces, because they share one agent harness.
+None of them reaches Cascade.

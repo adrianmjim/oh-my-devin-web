@@ -12,6 +12,61 @@ Skills are instructions for the session, not code that `omd` runs. Their
 frontmatter — tools, permissions, triggers — is a contract for the Devin CLI to
 enforce; `omd` itself never reads a `SKILL.md` back.
 
+## Where a session finds them
+
+You do not have to package or register anything. `omd setup` writes the skills
+straight into the directories Devin already scans, so they are available in the
+next session you start.
+
+| Install | Skills land in | Available in |
+| ------------------------ | ---------------------------------- | ------------------------- |
+| `omd setup` | `.devin/skills/<name>/SKILL.md` | That project |
+| `omd setup --level=user` | `~/.config/devin/skills/<name>/SKILL.md` | Every project on the machine |
+
+Both are locations Devin
+[documents](https://docs.devin.ai/cli/extensibility/skills/overview) as skill
+discovery paths — project-scoped and global respectively. Because Devin Local
+in Devin Desktop shares the CLI's agent harness, the same two installs serve
+the terminal and the Desktop app. Nothing else is needed: the plugin channel is
+an alternative distribution route, not a prerequisite.
+
+<Warning>
+  Cascade, the other agent in Devin Desktop, scans different directories —
+  `.windsurf/skills/`, `~/.codeium/windsurf/skills/`, and the cross-agent
+  `.agents/skills/` — and not `.devin/skills/`. An `omd setup` install is not
+  discovered by Cascade. See
+  [Devin Desktop](/docs/concepts/devin-desktop).
+</Warning>
+
+## How they are invoked
+
+Devin invokes a skill in two ways: on its own, when your request matches the
+skill's description, or explicitly, when you name it.
+
+Every skill `omd` installs is written for the first path. All eight declare
+`triggers: [model]`, so the intended use is to describe what you want and let
+the session reach for the right skill:
+
+```text
+Delegate the CSV export work to the executor role.
+```
+
+matches `omd-delegate`'s description and hands the task to the contractual
+lane. The mode skills work the same way — asking to run the team pipeline
+matches `team`, asking to check an installation matches `omd-install`.
+
+<Note>
+  Devin documents the `triggers` default as `["user", "model"]`, and documents
+  `["user"]` as the way to disable autonomous invocation. It does not document
+  the `["model"]`-only case that these skills declare, and the explicit
+  invocation syntax differs across Devin's own surfaces. Treat
+  description-matched invocation as the supported path here, and check Devin's
+  documentation for the explicit syntax on the surface you are using.
+</Note>
+
+Skills installed through the plugin channel are namespaced instead, as
+`/oh-my-devin:<skill>`.
+
 ## The delegation hinge
 
 `omd-delegate` is the skill that turns a conversation into a contractual run. It
