@@ -2,15 +2,16 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Oh My Devin",
+  "description": "An organizational layer over the Devin CLI: functional roles, declarative teams, and deliberative councils over local Devin sessions.",
   "colors": {
-    "primary": "#2e8555",
-    "light": "#25c2a0",
-    "dark": "#2e8555"
+    "primary": "#8E2F3C",
+    "light": "#DA7A85",
+    "dark": "#8E2F3C"
   },
-  "favicon": "/favicon.ico",
+  "favicon": "/favicon.svg",
   "logo": {
-    "light": "/logo.svg",
-    "dark": "/logo.svg"
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
   },
   "navbar": {
     "links": [
@@ -33,7 +34,10 @@
           "docs/concepts/runs",
           "docs/concepts/teams",
           "docs/concepts/councils",
-          "docs/concepts/in-session-layer"
+          "docs/concepts/layer-installation",
+          "docs/concepts/in-session-layer",
+          "docs/concepts/skills",
+          "docs/concepts/devin-desktop"
         ]
       },
       {
@@ -51,6 +55,23 @@
   "footer": {
     "socials": {
       "github": "https://github.com/adrianmjim/oh-my-devin"
+    }
+  },
+  "seo": {
+    "metatags": {
+      "og:site_name": "Oh My Devin",
+      "og:title": "Oh My Devin — an organizational layer over the Devin CLI",
+      "og:description": "Turn Devin CLI sessions into an organization of agents: functional roles, declarative teams, and deliberative councils.",
+      "og:type": "website",
+      "og:url": "https://ohmydevin.mintlify.io",
+      "og:image": "https://ohmydevin.mintlify.io/images/og.png",
+      "og:image:width": "1200",
+      "og:image:height": "630",
+      "og:image:alt": "Oh My Devin — an organizational layer over the Devin CLI",
+      "twitter:card": "summary_large_image",
+      "twitter:title": "Oh My Devin — an organizational layer over the Devin CLI",
+      "twitter:description": "Turn Devin CLI sessions into an organization of agents: functional roles, declarative teams, and deliberative councils.",
+      "twitter:image": "https://ohmydevin.mintlify.io/images/og.png"
     }
   }
 }

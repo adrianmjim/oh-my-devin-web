@@ -1,0 +1,95 @@
+---
+title: "Devin Desktop"
+description: "Where the omd layer applies beyond the terminal, and how the plugin channel installs it across projects."
+sidebarTitle: "Devin Desktop"
+---
+
+Oh My Devin targets local Devin CLI sessions. The natural next question for a
+Devin-family tool is whether any of it applies in Devin Desktop. Part of it
+does, and the boundary is worth stating precisely.
+
+## Two agents, one dialect
+
+Devin Desktop runs two different agents. Which one you use decides whether the
+layer applies.
+
+[Devin Local](https://docs.devin.ai/desktop/devin-local) is the agent harness
+Devin Desktop shares with the Devin CLI. Because it is the same harness, it
+reads the same configuration dialect: `AGENTS.md` rules and `SKILL.md` skills,
+discovered the same way.
+
+Cascade is the other agent, and it reads a different dialect. `omd` does not
+target it.
+
+## What applies under Devin Local
+
+The layer `omd setup` writes is configuration, not a running process, so it
+applies wherever that configuration is discovered.
+
+Devin's own documentation puts the user-level configuration at
+`~/.config/devin/config.json`, with global rules alongside it at
+`~/.config/devin/AGENTS.md`. That is exactly where `omd setup --level=user`
+writes — the rules file, the roles and their schemas, and the eight skills. A
+[user-level install](/docs/concepts/layer-installation) is therefore discovered
+by Devin Local without anything Desktop-specific.
+
+Project-level installs apply the same way: `AGENTS.md` and `.devin/` in the
+project root are discovered by the shared harness.
+
+Two things are needed for the layer to do more than describe itself:
+
+- `omd` must be on your `PATH`, since the skills work by running it.
+- The projects you orchestrate must be git repositories, because team and
+  council runs use worktrees.
+
+<Warning>
+  Hook-driven behavior is unverified on Desktop. Persistent modes and the
+  stop-verification gate depend on the `SessionStart`, `UserPromptSubmit`, and
+  `Stop` hooks that `omd setup` registers. Devin's Devin Local documentation
+  points at the CLI documentation for hooks rather than stating Desktop's own
+  support, so treat `omd mode set` and the stop gate as verified on the CLI
+  and untested on Desktop.
+</Warning>
+
+## The plugin channel
+
+`omd plugin build` produces a Devin plugin — the user-level, cross-project way
+to carry the skills without installing into each project.
+
+```bash
+omd plugin build
+```
+
+The bundle contains exactly three things: the manifest at
+`.devin-plugin/plugin.json`, the `AGENTS.md` rules file, and the eight skills
+under `skills/`. Nothing else — no roles, no schemas, no hooks, no team
+declaration.
+
+That shape is the plugin structure Devin
+[documents](https://docs.devin.ai/cli/extensibility/plugins): a manifest, an
+optional rules file, and a `skills/` directory of ordinary skills. Install it
+from the directory the build printed:
+
+```bash
+devin plugins install <path-to-bundle>
+```
+
+Plugins install at the user level and are available across all your projects.
+Their skills are namespaced as slash commands — `/oh-my-devin:omd-delegate` and
+so on. Use `devin plugins list`, `devin plugins update`, and
+`devin plugins remove` to manage them.
+
+<Note>
+  The plugin carries no roles. The skills it installs delegate through the
+  `omd` CLI, which reads roles from the project or user-level layer — so a
+  plugin install still needs `omd setup` somewhere for `omd run` to have a
+  role catalog. See [Layer installation](/docs/concepts/layer-installation).
+</Note>
+
+## Choosing a channel
+
+| You want | Use |
+| ------------------------------------------- | ----------------------------- |
+| The full layer in one project, in version control | `omd setup` |
+| The full layer for every session you start | `omd setup --level=user` |
+| Just the skills, across projects, managed by Devin | `omd plugin build` + `devin plugins install` |

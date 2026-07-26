@@ -1,36 +1,60 @@
 ---
 title: "CLI reference"
-description: "Synopsis, flags, behavior, and exit codes for every omd command."
+description: "Synopsis, flags, behavior, exit codes, and environment variables for every omd command."
 sidebarTitle: "CLI"
 ---
 
-Running `omd` with no arguments, `--help`, or `-h` prints the usage banner:
+Running `omd` with no arguments prints the usage banner. `--help` or `-h` does
+the same from any argument position:
 
 ```text
 omd — an organizational layer over the Devin CLI
 
 Usage:
-  omd run <role> "<task>" [--json]   Run a role against a task end to end
-  omd doctor                         Check the local runtime contract
-  omd roles list [--json]            List the project's roles
-  omd roles show <role> [--json]     Show a role's expanded contract
-  omd setup [--scope=<parts>]        Install the in-session layer (parts: rules,roles,skills,hooks)
-  omd plugin build [--out <dir>]     Build the installable devin plugin bundle
-  omd team run <team> "<task>"       Run a team pipeline (architect → executor → reviewer)
-  omd council run <c> "<question>"   Run a deliberation council [--proposal <path>] [--then <team>] [--sign] [--json]
-  omd mode <set|clear> [<mode>]      Set or clear the persistent mode state read by the session hooks
+  omd run <role> "<task>" [--json] [--detach]   Run a role against a task end to end
+  omd status <run-id> [--json]                  Show a bounded snapshot of a run
+  omd doctor                                    Check the local runtime contract
+  omd roles list [--json]                       List the project’s roles
+  omd roles show <role> [--json]                Show a role’s expanded contract
+  omd setup [--level=<project|user>] [--scope=<parts>]  Install the in-session layer (level: project|user; parts: rules,roles,skills,hooks,teams)
+  omd plugin build [--out <dir>]                Build the installable devin plugin bundle
+  omd team run [<team>] "<task>"                Run a team pipeline (architect → executor → reviewer); omits <team> to launch the default
+  omd council run <c> "<question>"              Run a deliberation council [--proposal <path>] [--then <team>] [--sign] [--json]
+  omd mode <set|clear> [<mode>]                 Set or clear the persistent mode state read by the session hooks
+  omd --version                                 Print the installed omd version
 ```
 
-Two conventions hold across the surface. Commands that support `--json` emit a
-single JSON object with camelCase fields instead of the human report. A usage
-error prints `usage error: <message>` to stderr (or
-`{"error": "...", "exitCode": 64}` when `--json` is present) and exits `64`;
-any unexpected error prints `error: <message>` and exits `1`.
+## Conventions
+
+Commands that support `--json` emit a single JSON object with camelCase fields
+instead of the human report. Where a command also prints a launch-identity
+line, that line moves to stderr under `--json` so stdout stays pure JSON.
+
+A usage error prints `usage error: <message>` to stderr and exits `64`. If
+`--json` appears anywhere in the raw arguments, the payload is rendered as
+`{"error": "...", "exitCode": 64}` instead — this scan is independent of the
+command, so a usage error from a command that does not itself accept `--json`
+still renders as JSON. Any other unexpected error prints `error: <message>` and
+exits `1`, never as JSON.
+
+### Unknown arguments
+
+The surface is deliberately split between strict and lenient parsing.
+
+| Parsing | Commands | Behavior |
+| ------- | -------------------------------------------------- | ------------------------------------------------- |
+| Lenient | `run`, `status`, `doctor`, `roles`, `team run` | Unrecognized `--flags` and surplus positionals are dropped silently |
+| Strict | `setup`, `plugin build`, `council run`, `mode`, `--version` | Any unrecognized argument is a usage error |
+
+One consequence of lenient parsing is worth knowing: every `--`-prefixed token
+is filtered out before positionals are read, and there is no `--`
+end-of-options separator. A role, task, team, or question argument can
+therefore never begin with `--`.
 
 ## omd run
 
 ```bash
-omd run <role> "<task>" [--json]
+omd run <role> "<task>" [--json] [--detach]
 ```
 
 Runs one role against a task end to end: compile the role's contract, open a
@@ -38,9 +62,46 @@ headless session, validate the declared artifact, repair at most once, and
 report. Both arguments are required and the task must be non-empty. There is no
 per-run model flag — the role's declared `model` always applies.
 
+The command creates `.omd/runs/<run-id>/` and prints
+`omd run — launched (run <id>)` before the run begins.
+
 Exits `0` on success, `2` on a deny hit, `3` on an invalid artifact, `4` on
 budget exhaustion. See [Runs](/docs/concepts/runs) for the lifecycle and the
 JSON report fields.
+
+### --detach
+
+`--detach` returns immediately instead of waiting. It validates the invocation,
+creates the run directory, spawns a background process, and prints the new run
+id on stdout — or `{"runId": "<id>"}` with `--json`. A detached launch always
+exits `0`; the run's own outcome is observed with
+[`omd status`](#omd-status). The background process writes `stdout.log` and
+`stderr.log` into the run directory.
+
+Detached runs generate their own id. `--detach` is available on `omd run` only.
+
+## omd status
+
+```bash
+omd status <run-id> [--json]
+```
+
+Prints a bounded snapshot of a run: which state it is in, how far it has got,
+and whether it is still alive. The run id is required.
+
+`omd status` reports on the run, but its own exit code only reflects whether the
+snapshot could be read — a failed run still exits `0`. An unknown or malformed
+run id is a usage error and exits `64`.
+
+With `--json` the fields are, in order: `runId`, `runKind`, `state`, `subject`,
+`currentStage`, `turnsUsed`, `maxTurns`, `artifactPath`, `artifactValid`,
+`pendingGate`, `failureTier`, and `lastEventAt`.
+
+<Note>
+  Only `omd run` and `omd team run` create runs. `omd council run` records a
+  decision rather than a run, so it has no run id and cannot be observed with
+  `omd status`.
+</Note>
 
 ## omd doctor
 
@@ -53,6 +114,9 @@ Runs the five runtime-contract checks — `devin-cli`, `devin-version`,
 `[pass|warn|fail] <check>: <message>` per line. Exits `1` if any check fails;
 warnings alone exit `0`.
 
+`omd doctor` takes no arguments and no flags. It accepts `--json` without
+complaint but ignores it: the output is always the human lines.
+
 ## omd roles
 
 ```bash
@@ -60,34 +124,41 @@ omd roles list [--json]
 omd roles show <role> [--json]
 ```
 
-`list` scans `.devin/agents/*/AGENT.md` and prints one line per role — the
-name and the first line of its prompt. Roles that fail to parse are reported
-on stderr as `! <name>: <message>` without hiding the valid ones; an empty
-catalog prints `No roles found.` and exits `0`. With `--json`, each entry
-carries `name`, `output`, `schema`, `maxTurns`, `context`, `engine`,
-`agentType`, and `model`.
+`list` scans `.devin/agents/*/AGENT.md` and prints one line per role. Roles that
+fail to parse are reported on stderr as `! <name>: <message>` without hiding the
+valid ones; an empty catalog prints `No roles found.` and exits `0`. With
+`--json`, each entry carries `name`, `output`, `schema`, `maxTurns`, `context`,
+`engine`, `agentType`, and `model`.
 
 `show` prints the named role's expanded contract — name, engine, agent type,
-model, tools, permissions, artifact, schema, budgets, and prompt summary. With
-`--json` the fields are `name`, `engine`, `agentType`, `model`, `tools`,
-`permissions`, `output`, `schema`, `maxTurns`, `context`, `wallTimeMs`, and
-`promptSummary`. An unknown role is a usage error.
+model, tools, permissions, artifact, schema, and budgets. With `--json` the
+fields are `name`, `engine`, `agentType`, `model`, `tools`, `permissions`,
+`output`, `schema`, `maxTurns`, `context`, `wallTimeMs`, and `promptSummary`.
+An unknown role is a usage error.
 
 ## omd setup
 
 ```bash
-omd setup [--scope=<parts>]
+omd setup [--level=<project|user>] [--scope=<parts>]
 ```
 
-Installs the in-session layer into the current project and lists every file it
-wrote. `--scope` takes a comma-separated subset of `rules,roles,skills,hooks`
-and must use the `--scope=` form; without it, all four components are
-installed.
+Installs the in-session layer and reports every path it touched, grouped by
+outcome. Both flags accept the `=` form only — `omd setup --level user` is a
+usage error.
 
-<Warning>
-  Files are written unconditionally — an existing `AGENTS.md` or any other
-  colliding file is overwritten.
-</Warning>
+| Flag | Values | Default |
+| ---------- | ------------------------------------------ | -------------------------- |
+| `--level=` | `project`, `user` | `project` |
+| `--scope=` | any comma-separated subset of `rules`, `roles`, `skills`, `hooks`, `teams` | all five |
+
+When stdin and stdout are both TTYs and either flag was omitted, `omd setup`
+prompts for the missing value first. Non-interactively it takes the defaults
+above without prompting.
+
+Setup is non-destructive: it maintains its own marked region in each file it
+owns, and reports rather than overwrites anything it does not own. See
+[Layer installation](/docs/concepts/layer-installation) for install levels,
+ownership regions, and what each outcome means.
 
 ## omd plugin build
 
@@ -95,22 +166,33 @@ installed.
 omd plugin build [--out <dir>]
 ```
 
-Writes the installable Devin plugin bundle — `.devin-plugin/plugin.json`,
-`AGENTS.md`, and the skills — and prints the absolute output directory.
-`--out` (space or `=` form) overrides the default output directory
-`.omd/plugin`.
+Writes the installable Devin plugin bundle and prints the absolute output
+directory. The bundle contains the plugin manifest at
+`.devin-plugin/plugin.json`, the `AGENTS.md` rules file, and the eight skills
+under `skills/` — nothing else.
+
+`--out` accepts both the space and `=` form and defaults to `.omd/plugin`. If it
+is repeated, the last occurrence wins. See
+[Devin Desktop](/docs/concepts/devin-desktop) for what the bundle is for.
 
 ## omd team run
 
 ```bash
-omd team run <team> "<task>" [--json]
+omd team run [<team>] "<task>" [--json]
 ```
 
 Runs the team declared at `.devin/teams/<team>.yaml` through the three-stage
-pipeline with a human gate after each stage. If a `requirements.md` exists at
-the project root, the task is prepended to it to form the requirements
-artifact. Exits `0` when the pipeline reaches `done`, `1` when it halts. See
-[Teams](/docs/concepts/teams) for gates, handoffs, and the JSON report.
+pipeline with a human gate after each stage. The team name is optional: with a
+single argument, `omd team run "<task>"` launches the `default` team installed
+by `omd setup`.
+
+If a `requirements.md` exists at the project root, the task is prepended to it
+to form the requirements artifact. Like `omd run`, the command creates
+`.omd/runs/<run-id>/` and prints a launch-identity line.
+
+Exits `0` when the pipeline succeeds, `1` when it halts. There is no detached
+form — `omd team run --detach` is rejected. See [Teams](/docs/concepts/teams)
+for gates, handoffs, and the JSON report.
 
 ## omd council run
 
@@ -120,12 +202,16 @@ omd council run <council> "<question>" [--proposal <path>] [--then <team>] [--si
 
 Runs the council declared at `.devin/councils/<council>.yaml` against a
 question. `--proposal` attaches a free-form proposal file; without it, the
-proposer seat drafts one. `--then` names a team to bridge into on an
-authorized pass, and only takes effect together with `--sign`, the human
-sign-off. Valued flags accept both `--flag value` and `--flag=value`.
+proposer seat drafts one. `--then` names a team to bridge into on an authorized
+pass. `--sign` records the human sign-off, and takes effect only together with
+`--then` on a decision that requires one — on its own it changes nothing.
 
-Exits `0` on `passed`, `5` on `blocked`, `6` on `bankrupt`. Every closure
-writes a decision record under `.omd/deliberations/`. See
+Valued flags accept both `--flag value` and `--flag=value`, but unlike the other
+commands they may not precede the two positionals: `omd council run` reads the
+council and the question from fixed argument positions.
+
+Exits `0` on `passed`, `5` on `blocked`, `6` on `bankrupt`. Every closure writes
+a decision record under `.omd/deliberations/<id>/decision.json`. See
 [Councils](/docs/concepts/councils) for the deliberation protocol.
 
 ## omd mode
@@ -136,15 +222,26 @@ omd mode clear
 ```
 
 `set` writes the persistent mode state to `.omd/mode.json` and prints
-`mode set: <mode>`; valid modes are `autopilot`, `ralph`, `team`, `plan`, and
-`verify` (`deep-dive` is a skill without persistent state). `clear` removes
-the state — silently succeeding if none exists — and prints `mode cleared`.
+`mode set: <mode>`. The mode name is required, and must be one of `autopilot`,
+`ralph`, `team`, `plan`, or `verify` — `deep-dive` is a skill without persistent
+state. `clear` removes the state, silently succeeding if none exists, and prints
+`mode cleared`; it takes no further argument.
+
+## omd --version
+
+```bash
+omd --version
+```
+
+Prints the installed `omd` version and exits `0`. It must be the first
+argument — `omd --version doctor` is a usage error. Elsewhere in the argument
+list it is ignored.
 
 ## Exit codes
 
 | Code | Meaning |
 | ---- | ------------------------------------------------------------------ |
-| `0` | Success — including a council that closed `passed` |
+| `0` | Success — including a detached launch, a council that closed `passed`, and `omd status` on a failed run |
 | `1` | Unexpected error; `omd doctor` with a failing check; a halted pipeline |
 | `2` | Run failure tier 1 — deny hit |
 | `3` | Run failure tier 2 — invalid artifact |
@@ -152,3 +249,13 @@ the state — silently succeeding if none exists — and prints `mode cleared`.
 | `5` | Council closed `blocked` |
 | `6` | Council closed `bankrupt` |
 | `64` | Usage error — rejected before any session starts |
+
+## Environment variables
+
+| Variable | Read by | Effect |
+| ----------------- | ------------------ | ---------------------------------------------------- |
+| `XDG_CONFIG_HOME` | every command | Base for the user-level layer at `<value>/devin`. Honored only when absolute; otherwise `~/.config` is used |
+| `OMD_RUN_ID` | `omd run` (blocking form) | Pins the run id instead of generating one. Ignored unless it matches `[A-Za-z0-9._-]+`. `omd run --detach` sets it for the background process it spawns |
+
+`OMD_RUN_ID` is read by the blocking `omd run` only. It cannot pin the id of a
+team pipeline, and council runs have no run id at all.

@@ -3,16 +3,20 @@ title: "Team definition"
 description: "Every key of a team manifest: members, workflow transitions, and the constraints omd validates before any session starts."
 ---
 
-A team is one YAML manifest at `.devin/teams/<name>.yaml`. A malformed
-manifest is rejected as a usage error before any session starts.
+A team is one YAML manifest at `.devin/teams/<name>.yaml`, resolved in the
+project only — there is no user-level fallback for teams. A malformed manifest
+is rejected as a usage error before any session starts.
 
 ## Keys
 
 | Key | Required | Type | Meaning |
 | ---------- | -------- | -------------- | ------------------------------------------ |
-| `name` | yes | string | The team's name |
+| `name` | yes | string | The team's name, as reported |
 | `members` | yes | non-empty list | The pipeline's stages, in order |
 | `workflow` | yes | mapping | Transitions between stages |
+
+The filename locates the team, not `name`. A mismatch between the two is never
+reported — `name` is what the run reports back to you.
 
 ### Members
 
@@ -22,22 +26,40 @@ Each member declares:
 | ---------- | ----------------------- | ---------------------------- | ----------------------------------- |
 | `role` | yes | string | A role discovered in the project's catalog |
 | `count` | yes | positive integer | Instances of the role |
-| `strategy` | only when `count` > 1 | `parallel` \| `independent` | How multiple instances relate; must be omitted when `count` is 1 |
+| `strategy` | only when `count` > 1 | `parallel` \| `independent` | How multiple instances relate |
 
-The first member's role is the pipeline's entry stage and must be
-`architect`, `executor`, or `reviewer`.
+Member order is significant: the first member's role is the pipeline's entry
+stage. It must be `architect`, `executor`, or `reviewer` — but this is checked
+when the pipeline launches, not when the manifest parses, so a team with any
+other first member parses cleanly and fails only when run.
+
+<Note>
+  In practice only `architect` can be the entry stage. A pipeline starts with
+  just the `requirements` artifact available, and `executor` and `reviewer`
+  each require artifacts produced by an earlier stage, so entering at either
+  fails immediately on its missing input.
+</Note>
 
 ### Workflow
 
 `workflow` maps each stage to its transitions. Valid transition keys:
 
 - `then: <successor>` — unconditional next stage.
-- `on_passed`, `on_blocked`, `on_bankrupt` — outcome-dependent successors,
-  using the gate vocabulary: an approved gate follows `then`/`on_passed`, a
-  rejected gate follows `on_blocked`.
+- `on_passed`, `on_blocked`, `on_bankrupt` — outcome-dependent successors.
 - The literal successor `done` terminates the pipeline as `succeeded`.
 
-An unknown successor or transition key is a parse error.
+At the gate, an approved stage follows `on_passed`, falling back to `then`. A
+rejected stage follows `on_blocked` with no fallback: if it is absent, the
+pipeline halts. Any answer that is neither an approval nor a rejection also
+halts.
+
+Every workflow key must be a declared member, and every successor must be a
+declared member or `done`; anything else is a parse error. An empty
+`workflow: {}` parses and simply halts after the first stage.
+
+A successor that is a declared member but not one of `architect`, `executor`,
+or `reviewer` passes validation and then halts the pipeline at runtime rather
+than raising an error.
 
 ## Example
 
@@ -62,9 +84,18 @@ workflow:
 ## Related inputs
 
 An optional `requirements.md` at the project root is combined with the task —
-task first — into the `requirements` handoff artifact given to every stage.
+task first, then a blank line, then the file — into the `requirements` handoff
+artifact given to every stage. It is read from the directory you run
+`omd team run` in, and a missing file is not an error.
+
+A pipeline reached through a council bridge does not read `requirements.md`; the
+council's decided proposal occupies that slot instead.
 
 <Note>
-  `count` and `strategy` are validated but not yet exercised: the pipeline
-  currently runs one instance per stage.
+  `count` and `strategy` are validated but not yet exercised: the pipeline runs
+  one instance per stage, and nothing reads either field.
+
+  `on_bankrupt` is likewise accepted by the validator but never consulted. A
+  stage that fails or exhausts its budget halts the pipeline before any
+  transition is looked up.
 </Note>

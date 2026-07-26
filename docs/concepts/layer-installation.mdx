@@ -1,0 +1,186 @@
+---
+title: "Layer installation"
+description: "How omd setup installs the in-session layer: install levels, ownership regions, and what each outcome means."
+sidebarTitle: "Layer installation"
+---
+
+`omd setup` installs the in-session layer — the rules file, the roles and their
+schemas, the skills, the session hooks, and the default team. It is
+non-destructive and safe to re-run: it maintains its own marked region inside
+each file it owns, leaves everything else alone, and reports what it did to
+every path it touched.
+
+## Install levels
+
+```bash
+omd setup                  # project level, the default
+omd setup --level=user     # user level
+```
+
+| Level | Destination | Applies to |
+| --------- | ------------------------------------------- | ----------------------------- |
+| `project` | `AGENTS.md` and `.devin/` in the project root | The current project |
+| `user` | `${XDG_CONFIG_HOME:-~/.config}/devin` | Every session you start |
+
+At user level the `.devin` path segment is dropped, so the project's
+`.devin/skills/team/SKILL.md` becomes `<config>/skills/team/SKILL.md`, and
+`AGENTS.md` lands at `<config>/AGENTS.md`. The rules file is the one component
+whose text differs between levels: the user-level copy is phrased for every
+session you start rather than for one project.
+
+<Note>
+  `XDG_CONFIG_HOME` is honored only when it is an absolute path. A relative
+  value is ignored without warning and the install falls back to
+  `~/.config/devin`.
+</Note>
+
+Teams are not installed at user level. A user-level run reports them as
+`Refused: teams — no verified user-level discovery location` and installs
+everything else.
+
+## Choosing a scope
+
+```bash
+omd setup --scope=rules,skills
+```
+
+`--scope` takes a comma-separated subset of the five components. Without it, all
+five are installed.
+
+| Component | What it installs |
+| --------- | ------------------------------------------------------------------ |
+| `rules` | `AGENTS.md` |
+| `roles` | The `architect`, `executor`, and `reviewer` roles with their three JSON schemas |
+| `skills` | The eight skills under `.devin/skills/` |
+| `hooks` | `.devin/hooks/omd-mode.mjs` and the hook registry |
+| `teams` | `.devin/teams/default.yaml` |
+
+A component outside the scope is not read and not reported. A file you have
+already installed and since edited is left exactly as it was found if its
+component is out of scope.
+
+Both flags accept the `=` form only, and both are case-sensitive:
+`omd setup --level user` and `omd setup --scope=RULES` are usage errors.
+
+## Interactive prompts
+
+When stdin and stdout are both terminals and you omitted `--level` or
+`--scope`, setup asks for the missing value before installing anything:
+
+```text
+Install level? [project/user] (default: project)
+Component scope? [full / comma-separated of rules,roles,skills,hooks,teams] (default: full)
+```
+
+Answers are trimmed and case-insensitive, and an empty answer takes the default.
+Answer `full` for the scope to install everything. If you supply both flags, no
+prompt appears even on a terminal.
+
+Outside a terminal — in CI, or with stdin redirected — setup does not prompt. It
+installs at project level with all five components, the same result as pressing
+Enter twice.
+
+## Ownership regions
+
+Every file the layer owns carries a marked region. Setup rewrites only what is
+inside its markers, and it recognizes its own work by a digest recorded in the
+opening marker:
+
+```text
+<!-- omd:begin id=rules version=0.0.0 digest=sha256:0752574390acc75b937ff7f282193fa5 | maintained by `omd setup`; content outside this region is preserved -->
+...
+<!-- omd:end id=rules -->
+```
+
+The comment syntax follows the file type: `<!-- -->` in Markdown, `#` in YAML,
+`//` in scripts. JSON files carry no comments, so ownership is recorded as a
+`$comment` key holding an `omd:region` marker as the first key of the object.
+
+The digest is a truncated SHA-256 of the region's content. Setup compares it on
+every run: if it still matches, the region is yours to replace; if it does not,
+you have edited it, and setup leaves it alone.
+
+## Install outcomes
+
+Setup groups every path it touched under one of these headings.
+
+| Outcome | Meaning |
+| ------------ | -------------------------------------------------------------- |
+| `Created` | The file was absent or empty; setup wrote it |
+| `Updated` | Setup owned the region and its content changed |
+| `Unchanged` | Setup owned the region and the content was already identical |
+| `Preserved` | You edited the region; setup left the file untouched |
+| `Conflicted` | A file setup did not write occupies the path, or its markers cannot be read |
+| `Blocked` | The hook registry could not be extended safely |
+| `Refused` | The component is not supported at this install level |
+
+`Refused` is reported per component rather than per path, because nothing was
+attempted. The other six name the file they apply to.
+
+<Warning>
+  `omd setup` exits `0` even when targets come back `Conflicted` or `Blocked`.
+  A partially applied install is not signalled by the exit code — read the
+  output.
+</Warning>
+
+### What counts as an edit
+
+The rule differs between the rules file and everything else, and the difference
+matters in practice.
+
+`AGENTS.md` is a container: setup owns its region and nothing else, so you can
+add your own sections above or below the markers and setup will still report
+`Unchanged`.
+
+Every other file — roles, skills, hooks, the team declaration — is owned whole.
+Any byte changed anywhere in the file, including text added after the closing
+marker, makes it `Preserved`.
+
+## Recovering from an outcome
+
+Setup prints the reason but never a remediation step, and there is no `--force`
+flag. Recovery is manual.
+
+<AccordionGroup>
+  <Accordion title="Preserved — you edited the region">
+    The digest is the only gate, so you need to make it match again. Any of
+    these works:
+
+    - Delete the file. The next run reports `Created`.
+    - In `AGENTS.md`, delete just the marked region including both marker
+      lines. The next run appends a fresh region and reports `Updated`.
+    - Revert your edit so the content matches what was installed.
+
+    There is no command that re-stamps a digest in place.
+  </Accordion>
+  <Accordion title="Conflicted — a foreign file, or unreadable markers">
+    If a file you wrote already occupies the path, move, rename, or delete it
+    so setup can write its own.
+
+    If the markers themselves are damaged — a missing end marker, a duplicated
+    region, an end marker before its begin marker, or a marker missing its
+    `id`, `version`, or `digest` attribute — repair them by hand, or delete the
+    region entirely and let setup recreate it.
+
+    If a JSON file no longer parses as an object, fix the JSON or remove the
+    file.
+  </Accordion>
+  <Accordion title="Blocked — the hook registry">
+    The registry is only extended when the hook script it points at was
+    installed by setup. If `.devin/hooks/omd-mode.mjs` comes back `Conflicted`,
+    the registry is `Blocked` in the same run and no hooks are registered.
+
+    Resolve the script first, then re-run setup. The registry is also blocked
+    when the existing registry file is not a JSON object, or when its hooks
+    key holds something setup cannot extend.
+  </Accordion>
+</AccordionGroup>
+
+<Card
+  title="The in-session layer"
+  icon="layer-group"
+  href="/docs/concepts/in-session-layer"
+  horizontal
+>
+  What the installed layer does once it is in place.
+</Card>
