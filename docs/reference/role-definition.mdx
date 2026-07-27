@@ -4,9 +4,17 @@ description: "Every key of the AGENT.md frontmatter: types, defaults, and the ru
 ---
 
 A role is one file at `.devin/agents/<role-name>/AGENT.md`: YAML frontmatter
-between `---` fences, followed by the role's prompt as the Markdown body. The
-role's name is the **directory name** — a `name` key in the frontmatter is
-tolerated but ignored. A file without frontmatter is rejected.
+between `---` fences, followed by the role's prompt as the Markdown body. A file
+without frontmatter is rejected.
+
+The role's name is the **directory name**. `name` and `description` keys in the
+frontmatter are never read, even though the roles `omd setup` installs write
+both. Renaming the directory renames the role; editing `name` does nothing, and
+the mismatch is not reported.
+
+Roles resolve project-first: `.devin/agents/<name>/AGENT.md` in the project,
+then `~/.config/devin/agents/<name>/AGENT.md` at the user level. A project role
+shadows a user role of the same name.
 
 ## Frontmatter keys
 
@@ -15,32 +23,52 @@ tolerated but ignored. A file without frontmatter is rejected.
 | `omd-output` | yes | string | — | Path of the one artifact the role must write |
 | `omd-schema` | yes | string | — | Path of the JSON Schema the artifact is validated against |
 | `omd-max-turns` | yes | positive integer | — | Turn budget, including the repair turn |
-| `omd-context` | no | `isolated` \| `shared` | `isolated` | Context policy for the role's session |
+| `omd-context` | no | `isolated` \| `shared` | `isolated` | Declared context policy — not yet exercised |
 | `omd-wall-time` | no | number or duration string | unset | Wall-time budget; evaluated between turns |
 | `engine` | no | `devin` | `devin` | Execution engine; `devin` is the only supported value |
-| `agent_type` | no | string | unset | Engine agent type, passed through as-is |
+| `agent_type` | no | string | unset | Engine agent type — not yet exercised |
 | `model` | no | string | engine default | Engine model for this role |
 | `allowed-tools` | no | list of strings | `[]` | Tool surface exposed to the role (`tools` is an accepted alias; `allowed-tools` wins) |
 | `permissions` | no | mapping | empty | `allow`, `deny`, and `ask` lists of `Verb(pattern)` rules |
 
+Unrecognized keys are ignored rather than rejected.
+
 `omd-wall-time` accepts a bare number, read as seconds, or a duration string
 matching `<digits>ms|s|m|h` — `90` and `90s` are equivalent, `500ms` and `5m`
-are valid.
+are valid. `0` is accepted and reads as exhausted immediately, which disables
+the repair turn.
+
+<Note>
+  `omd-context` and `agent_type` are validated and reported by
+  `omd roles show`, but nothing consumes them at runtime. Context isolation
+  comes from the git worktree each stage and seat runs in, not from
+  `omd-context`. Both are documented because the parser accepts them and the
+  installed roles declare `omd-context`.
+</Note>
 
 ## Compilation rules
 
 When `omd` compiles the contract into the engine's configuration bundle, it
 enforces write confinement:
 
-- If no `Write(<artifact>)` allow rule is declared, one is added
-  automatically.
+- If no `Write` allow rule is declared, `Write(<omd-output>)` is added
+  automatically at the front of the allow list. The artifact path is its only
+  input; there is no knob.
 - An `allow` rule granting `Write` to any path other than the declared
-  artifact is an error.
-- A `deny` rule matching the role's own artifact is an error.
+  artifact is an error. The comparison is exact string equality, not a glob —
+  `Write(*.json)` is rejected for the artifact `review.json`.
+- A `deny` rule matching the role's own artifact is an error. Deny matching
+  *is* glob-based, so a bare `Write` deny always fails compilation.
+
+`allow` and `deny` entries must parse as `Verb(pattern)`. `ask` entries are
+passed to the engine unexamined, so a malformed ask rule is not caught here.
 
 `deny` rules are red lines: a session that hits one ends the run as a tier-1
-failure. Writes outside the artifact that are not covered by a rule are
-refused without aborting the session.
+failure and skips artifact validation entirely. Writes outside the artifact that
+are not covered by a rule are refused without aborting the session.
+
+The compiled bundle carries two system instructions: a generated preamble
+naming the role, its artifact, and its schema, followed by your prompt body.
 
 ## Example
 
@@ -64,6 +92,15 @@ You are the reviewer. Assess the diff against the requirements and write
 your verdict to review.json.
 ```
 
-The referenced schema is plain JSON Schema. The one installed with the example
-role requires a `verdict` of `approve` or `request_changes`, allows optional
-`notes`, and forbids additional properties.
+The referenced schema is plain JSON Schema. The one installed with the
+`reviewer` role requires a `verdict` of `approve` or `request_changes`, allows
+optional `notes`, and forbids additional properties.
+
+<Note>
+  The schema is read before the session starts, but it is only parsed and
+  compiled when the artifact is validated — after the first turn. A schema that
+  is malformed JSON surfaces as a run failure rather than as a usage error.
+
+  On a repair turn the schema's full text is sent to the model, not just its
+  path.
+</Note>

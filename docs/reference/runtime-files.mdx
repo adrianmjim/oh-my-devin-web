@@ -12,6 +12,12 @@ is transient orchestrator state, not project content.
 
 ```text
 .omd/
+├── runs/
+│   └── <run-id>/
+│       ├── events.jsonl             Progress journal, one event per line
+│       ├── liveness.json            Heartbeat stamp
+│       ├── stdout.log               Detached runs only
+│       └── stderr.log               Detached runs only
 ├── mode.json                        Persistent mode state
 ├── deliberations/
 │   └── <question-slug>-<timestamp>/
@@ -23,6 +29,38 @@ is transient orchestrator state, not project content.
 
 All JSON that `omd` serializes uses camelCase field names. YAML that you
 author — roles, teams, councils — uses snake_case keys.
+
+`omd setup` writes nothing here: the in-session layer lives in `AGENTS.md` and
+`.devin/`.
+
+## Run records
+
+`omd run` and `omd team run` each create `.omd/runs/<run-id>/`. An attached run
+writes the journal and the liveness stamp; a detached run adds the two log
+files its background process writes to.
+
+`events.jsonl` holds one JSON object per line, each with a `type` and a
+`timestamp`. The nine event types are `runLaunched`, `turnCompleted`,
+`artifactValidated`, `repairAttempted`, `stageStarted`, `stageCompleted`,
+`gateWaitEntered`, `gateWaitResolved`, and `terminalOutcome`. Unparseable lines
+are skipped rather than failing a read.
+
+`liveness.json` is a single stamp, rewritten every 15 seconds while a run is
+live:
+
+```json .omd/runs/<run-id>/liveness.json
+{
+  "stampedAt": 1785100931204
+}
+```
+
+A run whose stamp is more than 120 seconds old reports as `stalled`. See
+[Runs](/docs/concepts/runs) for how the states are derived.
+
+<Note>
+  The outcome report is printed, not stored. For a detached run it survives
+  only in that run's `stdout.log`.
+</Note>
 
 ## mode.json
 
@@ -56,17 +94,38 @@ timestamp. Its fields:
 - `reconsiderWhen` — conditions under which the decision should be reopened.
 - `humanDecisionRequired` — whether the closure escalated to a human.
 
+The CLI never reads `decision.json` back. It is a terminal artifact, for you and
+for other tools. The command does not print where it landed, so the path above
+is how you find it.
+
 ## Worktrees
 
 Team stages and council seats each run in a dedicated git worktree under
-`.omd/worktrees/`, checked out detached from the repository's `HEAD`. Council
-worktrees are removed when the deliberation closes; team stage worktrees live
-for the duration of the pipeline, and the executor's diff is captured before
-teardown.
+`.omd/worktrees/`, checked out detached from the repository's `HEAD`. The
+directory is named after the stage (`architect`, `executor`, `reviewer`) or the
+seat (`seat-<id>`).
+
+Cleanup differs by caller. A team stage removes its own worktree as it
+finishes. Council seats share one worktree per seat for the whole deliberation,
+all removed together when it closes.
+
+For the `executor` stage only, `omd` stages the worktree's changes to capture
+the diff before teardown, which writes that worktree's git index.
+
+<Note>
+  Because these are real git worktrees, git also keeps administrative metadata
+  under `.git/worktrees/` — inside the project but outside `.omd/`. Removing
+  the worktree cleans it up.
+</Note>
 
 ## Outside the project
 
-Per-invocation compiled contract bundles and doctor probes are written to the
-operating system's temporary directory (`omd-bundle-*`, `omd-doctor-*`) and
-removed when the command finishes. Nothing else is written outside the project
-directory.
+Two things are written outside the project directory:
+
+- **Temporary bundles.** Per-invocation compiled contract bundles and doctor
+  probes go to the operating system's temporary directory (`omd-bundle-*`,
+  `omd-doctor-*`) and are removed when the command finishes. A killed process
+  can leak one.
+- **The user-level layer.** `omd setup --level=user` installs into
+  `${XDG_CONFIG_HOME:-~/.config}/devin`. See
+  [Layer installation](/docs/concepts/layer-installation).

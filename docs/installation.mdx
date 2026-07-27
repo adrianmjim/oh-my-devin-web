@@ -5,7 +5,9 @@ description: "Build omd from source and verify your environment with omd doctor.
 
 <Info>
   Oh My Devin is an early implementation and is not yet published to a package
-  registry. You build the `omd` CLI from source.
+  registry. You build the `omd` CLI from source. Registry package names and a
+  one-line installer arrive with the first published release; until then this
+  page describes the only working install path.
 </Info>
 
 ## Prerequisites
@@ -66,6 +68,29 @@ line per check in the form `[pass|warn|fail] <check>: <message>`:
 
 The command exits non-zero only when at least one check fails; warnings alone
 leave the exit code at `0`.
+
+## Where the in-session layer is installed
+
+Installing the CLI is separate from installing the layer it manages. `omd setup`
+writes the layer at one of two levels:
+
+| Level | Flag | Location |
+| --------- | ------------------------- | ------------------------------------------- |
+| Project | default | `.devin/` and `AGENTS.md` in the project root |
+| User | `--level=user` | `${XDG_CONFIG_HOME:-~/.config}/devin` |
+
+A user-level install applies across projects and does not need a git repository.
+Teams are not installed at that level, because there is no verified user-level
+discovery location for them.
+
+<Card
+  title="Layer installation"
+  icon="folder-tree"
+  href="/docs/concepts/layer-installation"
+  horizontal
+>
+  Install levels, ownership regions, and what each install outcome means.
+</Card>
 
 <Card title="Quickstart" icon="rocket" href="/docs/quickstart" horizontal>
   Install the in-session layer into a project and run your first role.

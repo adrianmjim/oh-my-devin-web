@@ -15,15 +15,41 @@ run. It assumes you have [installed omd](/docs/installation).
     ```
 
     `omd setup` writes the in-session layer into the project: an `AGENTS.md`
-    rules file, an example `reviewer` role with its output schema, the
-    delegation skill, six mode skills, and the session hooks, then lists every
-    file it wrote.
+    rules file, the `architect`, `executor`, and `reviewer` roles with their
+    output schemas, the delegation and installation skills, six mode skills,
+    the default team, and the session hooks. It then reports every path it
+    touched, grouped by outcome:
 
-    <Warning>
-      `omd setup` writes its files unconditionally: an existing `AGENTS.md` (or
-      any other colliding file) is overwritten. Run it on a clean working tree
-      and review the diff before committing.
-    </Warning>
+    ```text
+    Created:
+      AGENTS.md
+      .devin/agents/architect/AGENT.md
+      .devin/schemas/architecture.schema.json
+      .devin/agents/executor/AGENT.md
+      .devin/schemas/evidence.schema.json
+      .devin/agents/reviewer/AGENT.md
+      .devin/schemas/review.schema.json
+      .devin/skills/omd-delegate/SKILL.md
+      .devin/skills/omd-install/SKILL.md
+      .devin/skills/autopilot/SKILL.md
+      .devin/skills/ralph/SKILL.md
+      .devin/skills/team/SKILL.md
+      .devin/skills/plan/SKILL.md
+      .devin/skills/verify/SKILL.md
+      .devin/skills/deep-dive/SKILL.md
+      .devin/hooks/omd-mode.mjs
+      .devin/teams/default.yaml
+      .devin/hooks.v1.json
+    ```
+
+    <Note>
+      Setup is non-destructive and safe to re-run. It maintains its own marked
+      region inside each file it owns; content you write outside that region is
+      preserved, and a region you have edited yourself is reported as
+      `Preserved` rather than overwritten. See
+      [Layer installation](/docs/concepts/layer-installation) for the full
+      model.
+    </Note>
   </Step>
   <Step title="Check the runtime contract">
     ```bash
@@ -31,16 +57,17 @@ run. It assumes you have [installed omd](/docs/installation).
     ```
 
     Every line should read `[pass]`. A `[warn]` on `devin-version` means your
-    Devin CLI differs from the pinned `3000.1.27` — runs still work, but
-    behavior is only verified against the pin.
+    Devin CLI differs from [the pinned version](/docs/installation) — runs
+    still work, but behavior is only verified against the pin.
   </Step>
   <Step title="Inspect the role catalog">
     ```bash
     omd roles list
     ```
 
-    The catalog now contains the example role installed by setup. Print its
-    expanded contract — tools, permissions, artifact, schema, and budget:
+    The catalog now contains the three roles installed by setup — `architect`,
+    `executor`, and `reviewer`. Print one role's expanded contract — engine,
+    model, tools, permissions, artifact, schema, and budget:
 
     ```bash
     omd roles show reviewer
@@ -51,18 +78,22 @@ run. It assumes you have [installed omd](/docs/installation).
     omd run reviewer "Review the pending changes and record your verdict"
     ```
 
-    `omd` compiles the role's contract, opens a headless Devin session, lets it
-    work within its budget, validates the artifact the role must produce —
-    `review.json`, against `.devin/schemas/review.schema.json` — and reports
-    the outcome:
+    `omd` announces the run id, compiles the role's contract, opens a headless
+    Devin session, lets it work within its budget, validates the artifact the
+    role must produce — `review.json`, against
+    `.devin/schemas/review.schema.json` — and reports the outcome:
 
     ```text
+    omd run — launched (run 6f2b1c74-8d3e-4a19-9c05-1f7ab2e40d88)
     omd run — success
-    role: reviewer
-    task: Review the pending changes and record your verdict
-    engine: devin
+    run:      6f2b1c74-8d3e-4a19-9c05-1f7ab2e40d88
+    role:     reviewer
+    task:     Review the pending changes and record your verdict
+    engine:   devin
+    session:  devin-4471
     artifact: review.json (valid)
-    turns: 2/6
+    turns:    2/6
+    walltime: 41208ms
     outcome: success
     ```
 
@@ -78,8 +109,9 @@ run. It assumes you have [installed omd](/docs/installation).
 </Steps>
 
 <Tip>
-  `omd` keeps its runtime state — mode state, decision records, worktrees —
-  under `.omd/` in the project root. Add `.omd/` to your `.gitignore`.
+  `omd` keeps its runtime state — run records, mode state, decision records,
+  worktrees — under `.omd/` in the project root. Add `.omd/` to your
+  `.gitignore`.
 </Tip>
 
 ## Next steps

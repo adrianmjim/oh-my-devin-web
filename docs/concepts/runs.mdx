@@ -1,6 +1,6 @@
 ---
 title: "Runs"
-description: "What happens when omd run executes a role: one headless session, strict validation, a single repair attempt, and a classified outcome."
+description: "What happens when omd run executes a role, and how to launch it detached and follow it with omd status."
 ---
 
 `omd run <role> "<task>"` executes one role end to end with no human
@@ -13,24 +13,33 @@ in exactly one of three ways.
 1. **Resolve the role.** The role and its schema are loaded and validated. An
    unresolvable or malformed role is rejected before any session starts, as a
    usage error.
-2. **Compile the contract.** The role's tools, permissions, and instructions
+2. **Open the run record.** `omd` takes a run id, creates
+   `.omd/runs/<run-id>/`, and prints `omd run — launched (run <id>)`.
+3. **Compile the contract.** The role's tools, permissions, and instructions
    are compiled into a per-invocation configuration bundle for the engine.
-3. **Open a headless session.** `omd` launches a Devin session with the task
+4. **Open a headless session.** `omd` launches a Devin session with the task
    and the compiled bundle and lets the role work within its turn budget.
-4. **Validate the artifact.** After the session, the declared artifact is
+5. **Validate the artifact.** After the session, the declared artifact is
    strictly validated against the role's JSON Schema.
-5. **Repair once, if needed.** If validation fails and budget remains, `omd`
+6. **Repair once, if needed.** If validation fails and budget remains, `omd`
    resumes the same session exactly once, feeding back the validation report.
    The repair turn draws from the same `omd-max-turns` budget.
-6. **Classify and report.** The run ends as success or as one classified
+7. **Classify and report.** The run ends as success or as one classified
    failure tier, reported in human-readable form or as JSON with `--json`.
+
+A run that hits a deny rule skips validation and repair entirely.
 
 ## Under the hood
 
 Each turn is one non-interactive invocation of the Devin CLI — `devin -p` with
 the compiled `--agent-config` bundle, resumed with `--resume` so session memory
-carries across turns. Sessions are namespaced by working directory, so run one
-`omd` session per directory at a time to keep session identity unambiguous.
+carries across turns.
+
+The session `omd` opens is separate from any session you are working in, and it
+is identified by its working directory. See
+[What happens when a session delegates](/docs/concepts/in-session-layer#what-happens-when-a-session-delegates)
+for the full path, including what that means when the run is launched from
+inside a Devin session.
 
 ## Failure tiers
 
@@ -42,18 +51,107 @@ Every failed run maps to exactly one tier, with a fixed exit code:
 | 2 — invalid artifact | The artifact is missing or fails schema validation after repair | `3` |
 | 3 — budget | Turns or wall-time ran out before a valid artifact existed | `4` |
 
-When more than one condition holds, the higher tier wins: deny over invalid
-artifact over budget. Usage errors exit with `64` before any session starts;
-an unexpected engine failure exits with `1`.
+Classification is ordered: a deny hit wins over everything; otherwise a valid
+artifact means success; otherwise an attempted repair classifies as invalid
+artifact; otherwise budget exhaustion. Usage errors exit `64` before any session
+starts, and an unexpected engine failure exits `1`.
 
 ## Reports
 
-The human report is a fixed block — outcome, role, task, engine, session,
-artifact validity, turns used, wall time, and a tier detail line. With
-`--json` the run emits a single object with camelCase fields: `role`, `task`,
-`engine`, `sessionId`, `outcome`, `failureTier`, `exitCode`, `turnsUsed`,
-`maxTurns`, `wallTimeMs`, `artifactPath`, `artifactValid`,
+The human report is a fixed block — outcome, run id, role, task, engine,
+session, artifact validity, turns used, wall time, and a tier detail line. With
+`--json` the run emits a single object with camelCase fields: `runId`, `role`,
+`task`, `engine`, `sessionId`, `outcome`, `failureTier`, `exitCode`,
+`turnsUsed`, `maxTurns`, `wallTimeMs`, `artifactPath`, `artifactValid`,
 `validationErrors`, `denyRule`, and `repairAttempted`.
+
+<Note>
+  The report is printed, never stored. Nothing under `.omd/runs/<run-id>/`
+  holds it, so for a detached run the full report survives only in that run's
+  `stdout.log`.
+</Note>
+
+## Observing a run
+
+### Launch detached
+
+```bash
+omd run reviewer "Assess the diff on this branch" --detach
+```
+
+`--detach` validates the invocation, creates the run directory, starts the run
+in the background, and prints the new run id — or `{"runId": "<id>"}` with
+`--json`. It always exits `0`; the run's own outcome is observed separately. The
+background process writes `stdout.log` and `stderr.log` into the run directory.
+
+If the role cannot be resolved, the launch fails with exit `64` before any run
+id or directory exists.
+
+### Poll the status
+
+```bash
+omd status <run-id>
+omd status <run-id> --json
+```
+
+`omd status` reads the run's journal and prints a bounded snapshot. It exits `0`
+for any run it can resolve, whatever state that run is in — a failed run still
+exits `0`. An unknown or malformed run id exits `64`.
+
+With `--json` the fields are, in order: `runId`, `runKind`, `state`, `subject`,
+`currentStage`, `turnsUsed`, `maxTurns`, `artifactPath`, `artifactValid`,
+`pendingGate`, `failureTier`, and `lastEventAt`. `runKind` is `single-role` or
+`pipeline`; `artifactValid` is `null` until the artifact has been validated;
+`lastEventAt` is an epoch-millisecond number.
+
+### Run states
+
+| State | Meaning |
+| --------------- | ------------------------------------------------------------ |
+| `running` | Work is in progress and the heartbeat is current |
+| `stalled` | No heartbeat within the last 120 seconds |
+| `awaiting-gate` | A stage is waiting on a human decision |
+| `succeeded` | Terminal outcome reported, successful |
+| `failed` | Terminal outcome reported, unsuccessful |
+
+The state is derived, in this order: a terminal outcome makes the run
+`succeeded` or `failed`; otherwise a lapsed heartbeat makes it `stalled`;
+otherwise a pending gate makes it `awaiting-gate`; otherwise it is `running`.
+
+Because `stalled` is checked before `awaiting-gate`, a gate that has been
+waiting a long time reports as `stalled`.
+
+### Liveness
+
+A run stamps `liveness.json` when it launches and refreshes it every 15
+seconds. A run is `stalled` once that stamp is more than 120 seconds old, or if
+the stamp cannot be read at all.
+
+Nothing ever writes the `stalled` state — it is computed when you ask. A run
+that was killed leaves a stale stamp and no terminal outcome, so it reports
+`stalled` from 120 seconds afterwards and stays that way. A run killed after
+its terminal outcome still reports `succeeded` or `failed`, because the
+terminal check comes first.
+
+<Note>
+  Between launch and the first journal line there is nothing to read, so status
+  falls back to a snapshot derived from the run directory itself. In that
+  window a team run is reported as `single-role`.
+</Note>
+
+### The events journal
+
+`.omd/runs/<run-id>/events.jsonl` holds one JSON object per line. There are nine
+event types: `runLaunched`, `turnCompleted`, `artifactValidated`,
+`repairAttempted`, `stageStarted`, `stageCompleted`, `gateWaitEntered`,
+`gateWaitResolved`, and `terminalOutcome`. Every event carries a `type` and a
+`timestamp`. Lines that do not parse are skipped rather than failing the read.
+
+<Note>
+  Only `omd run` and `omd team run` create runs. `omd council run` writes a
+  decision record instead and has no run id, so it cannot be followed with
+  `omd status`.
+</Note>
 
 <Card title="CLI reference" icon="terminal" href="/docs/reference/cli" horizontal>
   Full synopsis, flags, and exit codes for every command.

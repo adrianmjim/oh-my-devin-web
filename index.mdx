@@ -1,32 +1,217 @@
 ---
 title: "Oh My Devin"
-description: "An organizational layer on top of the Devin CLI"
+description: "An organizational layer over the Devin CLI: functional roles, declarative teams, and deliberative councils over local Devin sessions."
 mode: "custom"
 ---
 
-export const Hero = () => (
-  <div style={{ textAlign: "center", padding: "6rem 1rem" }}>
-    <h1 style={{ fontSize: "3rem", fontWeight: 700, marginBottom: "1rem" }}>
-      Oh My Devin
-    </h1>
-    <p style={{ fontSize: "1.25rem", opacity: 0.8, marginBottom: "2rem" }}>
-      An organizational layer on top of the Devin CLI
-    </p>
-    <a
-      href="/docs/overview"
-      style={{
-        display: "inline-block",
-        padding: "0.75rem 1.5rem",
-        borderRadius: "0.5rem",
-        background: "#2e8555",
-        color: "#ffffff",
-        fontWeight: 600,
-        textDecoration: "none",
-      }}
-    >
-      Read the documentation
-    </a>
-  </div>
-);
+export const terminal = [
+  { k: "cmd", t: "omd doctor" },
+  { k: "pass", t: "devin-cli: devin executable found on PATH" },
+  { k: "pass", t: "agent-config: devin accepts the compiled --agent-config bundle" },
+  { k: "pass", t: "headless-surface: devin list --format json returns the expected shape" },
+  { k: "pass", t: "node-runtime: Node.js 24.18.0 satisfies the minimum" },
+  { k: "gap" },
+  { k: "cmd", t: "omd setup" },
+  { k: "out", t: "Created:" },
+  { k: "out", t: "  AGENTS.md" },
+  { k: "out", t: "  .devin/agents/architect/AGENT.md" },
+  { k: "out", t: "  .devin/agents/executor/AGENT.md" },
+  { k: "out", t: "  .devin/agents/reviewer/AGENT.md" },
+  { k: "out", t: "  .devin/teams/default.yaml" },
+  { k: "out", t: "  ... and the eight in-session skills" },
+  { k: "gap" },
+  { k: "cmd", t: 'omd team run "Add CSV export to the reports page"' },
+  { k: "cmd", t: 'omd run reviewer "Assess the diff on this branch" --detach' },
+  { k: "cmd", t: "omd status 20260726-a1b2c3" },
+];
 
-<Hero />
+export const pillars = [
+  {
+    n: "01",
+    title: "Roles",
+    href: "/docs/concepts/roles",
+    body: "A reusable, enforced contract: one output artifact, a schema it must satisfy, a tool and permission surface, and a budget. Compiled per invocation, so the contract holds even when the model ignores its instructions.",
+  },
+  {
+    n: "02",
+    title: "Teams",
+    href: "/docs/concepts/teams",
+    body: "A declared pipeline of roles — architect, executor, reviewer — with isolated stages, structured handoffs, and a human gate between every stage.",
+  },
+  {
+    n: "03",
+    title: "Councils",
+    href: "/docs/concepts/councils",
+    body: "Structured deliberation across independent seats: typed objections, consent-based closure, and a decision record that carries dissent.",
+  },
+];
+
+export const features = [
+  {
+    title: "Role contracts",
+    body: "Tools, permissions, model, budget, and a validated output artifact, enforced by the CLI rather than requested in a prompt.",
+  },
+  {
+    title: "Context isolation",
+    body: "Every unit of work runs as its own headless Devin session. Work crosses a role boundary only through handed artifacts, never shared history.",
+  },
+  {
+    title: "Verifiable gates",
+    body: "A stage stops until its artifact validates against its schema, so progress needs evidence rather than assertion.",
+  },
+  {
+    title: "Non-destructive install",
+    body: "The layer maintains its own regions in your files. Content you wrote is preserved, and an edited region is reported instead of overwritten.",
+  },
+  {
+    title: "Run observability",
+    body: "Launch detached and poll a bounded snapshot of any run: its state, its stage, and whether it is still alive.",
+  },
+  {
+    title: "In-session skills",
+    body: "Eight skills let a live Devin session delegate into the layer. The same bundle installs beyond the CLI through the plugin channel.",
+  },
+];
+
+<div className="omd-landing">
+
+<section className="omd-hero">
+  <div className="omd-shell">
+    <span className="omd-eyebrow">
+      <span className="omd-eyebrow-dot" />
+      Runs on the Devin CLI you already use
+    </span>
+    <h1 className="omd-title">
+      An organization of agents,
+      <br />
+      <span className="omd-title-accent">not a longer session</span>
+    </h1>
+    <p className="omd-lede">
+      Oh My Devin turns local Devin CLI sessions into an organization: functional
+      roles under enforced contracts, declarative teams that hand work across
+      isolated stages, and deliberative councils that close with a decision
+      record. The engine stays Devin — this adds the structure and the protocols.
+    </p>
+    <div className="omd-cta-row">
+      <a className="omd-btn omd-btn-primary" href="/docs/overview">
+        Read the documentation
+      </a>
+      <a
+        className="omd-btn omd-btn-secondary"
+        href="https://github.com/adrianmjim/oh-my-devin"
+      >
+        View on GitHub
+      </a>
+    </div>
+  </div>
+</section>
+
+<section className="omd-section">
+  <div className="omd-shell">
+    <div className="omd-section-head">
+      <h2 className="omd-section-title">Three building blocks</h2>
+      <p className="omd-section-sub">
+        Each one is a declaration you write and the CLI enforces.
+      </p>
+    </div>
+    <div className="omd-pillars">
+      {pillars.map((p) => (
+        <a className="omd-pillar" href={p.href} key={p.n}>
+          <span className="omd-pillar-num">{p.n}</span>
+          <h3 className="omd-pillar-title">{p.title}</h3>
+          <p className="omd-pillar-body">{p.body}</p>
+        </a>
+      ))}
+    </div>
+  </div>
+</section>
+
+<section className="omd-section">
+  <div className="omd-shell">
+    <div className="omd-section-head">
+      <h2 className="omd-section-title">From a clean checkout</h2>
+      <p className="omd-section-sub">
+        Check the runtime contract, install the layer, then delegate work to it.
+      </p>
+    </div>
+    <div className="omd-terminal">
+      <div className="omd-terminal-bar">
+        <span className="omd-terminal-dot" />
+        <span className="omd-terminal-dot" />
+        <span className="omd-terminal-dot" />
+      </div>
+      <pre className="omd-terminal-body">
+        {terminal.map((line, i) => {
+          if (line.k === "gap") return <span key={i}>{"\n"}</span>;
+          if (line.k === "cmd")
+            return (
+              <span key={i}>
+                <span className="omd-prompt">$ </span>
+                <span className="omd-cmd">{line.t}</span>
+                {"\n"}
+              </span>
+            );
+          if (line.k === "pass")
+            return (
+              <span key={i}>
+                <span className="omd-ok">[pass]</span>
+                <span className="omd-out">{" " + line.t}</span>
+                {"\n"}
+              </span>
+            );
+          return (
+            <span className="omd-out" key={i}>
+              {line.t}
+              {"\n"}
+            </span>
+          );
+        })}
+      </pre>
+    </div>
+    <p className="omd-note">
+      A team run puts architect, executor, and reviewer in separate sessions and
+      hands a validated artifact across each boundary. A detached run returns a
+      run id you can poll with <code>omd status</code>.
+    </p>
+  </div>
+</section>
+
+<section className="omd-section">
+  <div className="omd-shell">
+    <div className="omd-section-head">
+      <h2 className="omd-section-title">What the layer adds</h2>
+      <p className="omd-section-sub">
+        A single long session has no first-class model for any of this.
+      </p>
+    </div>
+    <div className="omd-features">
+      {features.map((f) => (
+        <div className="omd-feature" key={f.title}>
+          <h3 className="omd-feature-title">{f.title}</h3>
+          <p className="omd-feature-body">{f.body}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<section className="omd-closing">
+  <div className="omd-shell">
+    <h2 className="omd-section-title">Start with the overview</h2>
+    <p className="omd-closing-sub">
+      Oh My Devin is an early implementation and is not yet published to a
+      package registry. The documentation covers building it from source and
+      verifying your environment.
+    </p>
+    <div className="omd-cta-row">
+      <a className="omd-btn omd-btn-primary" href="/docs/overview">
+        What is Oh My Devin
+      </a>
+      <a className="omd-btn omd-btn-secondary" href="/docs/installation">
+        Install the CLI
+      </a>
+    </div>
+  </div>
+</section>
+
+</div>

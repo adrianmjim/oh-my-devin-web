@@ -3,9 +3,12 @@ title: "Council declaration"
 description: "Every key of a council declaration — seats, deliberation tunables, authority — and the position contract each seat's role must satisfy."
 ---
 
-A council is one YAML declaration at `.devin/councils/<name>.yaml`. A
-malformed declaration is rejected as a usage error before any seat session
-starts.
+A council is one YAML declaration at `.devin/councils/<name>.yaml`, resolved in
+the project only. A malformed declaration is rejected as a usage error before
+any seat session starts.
+
+Nothing installs a council. `omd setup` ships roles, skills, hooks, and one
+team, but no council — every council is written by hand.
 
 ## Keys
 
@@ -15,6 +18,15 @@ starts.
 | `seats` | yes | non-empty list | The deliberating seats |
 | `deliberation` | yes | mapping | Round and consent tunables |
 | `authority` | no | mapping | What a passed closure is worth |
+
+`deliberation` must be present; omitting it is an error. `authority` may be
+omitted entirely and defaults to `on_consent: human`.
+
+<Note>
+  `name` is required but never read. The council is selected by filename, and
+  the decision record identifies the deliberation by its question. A `name`
+  that disagrees with the filename is not reported.
+</Note>
 
 ### Seats
 
@@ -26,8 +38,25 @@ starts.
 | `contrarian` | no | boolean | `false` | This seat is framed to seek the strongest counter-argument |
 | `model` | no | string | role's model | Per-seat model override, a decorrelation lever |
 
-Seat identifiers are derived automatically: a seat is named after its role,
-or `<role>-<n>` when the same role fills several seats.
+Seat identifiers are derived automatically: a seat is named after its role, or
+`<role>-<n>` when the same role fills several seats. A literal role name that
+collides with a generated identifier is rejected.
+
+Seat order matters. The proposer is the first seat declaring `proposer: true` —
+declaring several is accepted without warning, and the later ones simply
+deliberate. Proposer seats are excluded from the clarification and position
+rounds, so a proposer never casts a position.
+
+<Warning>
+  A council with no proposer seat requires `--proposal` on the command line.
+  Without either, the run fails. With an attached proposal but no proposer,
+  clarification questions go unanswered and objections are never folded into a
+  revised proposal.
+</Warning>
+
+`lens` is more than prompt framing. An objection blocks only if its `domain`
+lies within its seat's `lens`, matched token by token, so a seat that objects
+outside its lens cannot block consent whatever severity it claims.
 
 ### Deliberation
 
@@ -37,11 +66,18 @@ or `<role>-<n>` when the same role fills several seats.
 | `blocking_threshold` | no | `low` \| `medium` \| `high` \| `critical` | `high` | Minimum severity at which an in-lens objection blocks consent |
 | `wall_time_ms` | no | positive number | unset | Wall-time cap for the whole deliberation |
 
+`wall_time_ms` is milliseconds outright — unlike a role's `omd-wall-time`, which
+is seconds or a duration string. It is checked between rounds, so it cannot
+interrupt a round already in flight.
+
 ### Authority
 
 | Key | Required | Type | Default | Meaning |
 | ------------ | -------- | ---------------------- | ------- | ---------------------------------------- |
 | `on_consent` | no | `human` \| `proceed` | `human` | `human` escalates a pass for a human signature; `proceed` lets it flow onward |
+
+`on_consent` is the only recognized key. An `authority` block that omits it —
+or contains only unrecognized keys — is accepted and means `human`.
 
 There is no key that suppresses dissent: objections below the blocking
 threshold are still recorded and carried into the decision record.
@@ -63,6 +99,16 @@ position object. `omd` parses it with the following shape:
 
 A proposer seat writes the proposal document as its artifact instead and casts
 no position.
+
+The artifact and the schema come from the seat's **role**, not from the council:
+`omd` validates the artifact against the role's `omd-schema` and only then
+re-reads it as a position. A role used as a seat therefore needs a schema
+compatible with the shape above.
+
+A position blocks consent only when all three hold: its `kind` is `objection`,
+its `severity` is at least `blocking_threshold`, and its `domain` lies within
+the seat's `lens`. A `preference` never blocks, and a `clarification` is
+rejected outright during the position phase.
 
 ## Example
 

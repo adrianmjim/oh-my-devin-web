@@ -11,6 +11,10 @@ consent — not by majority vote and not by a moderator's judgment.
 
 ## Declaring a council
 
+Councils are always hand-authored. `omd setup` installs roles, skills, hooks,
+and a default team, but no council — there is nothing to start from and nothing
+to override.
+
 A council lives at `.devin/councils/<name>.yaml`:
 
 ```yaml .devin/councils/design-council.yaml
@@ -45,6 +49,13 @@ Every seat runs as its own session in its own worktree. Moderation — relaying
 arguments, validating objections, computing consent, deciding termination — is
 deterministic orchestrator code, not a model seat.
 
+<Note>
+  A council is not a run. Unlike `omd run` and `omd team run`, `omd council run`
+  creates no run id and no record under `.omd/runs/`, so it cannot be followed
+  with `omd status`. Its output is the decision record, written when the
+  deliberation closes.
+</Note>
+
 ## Independence defenses
 
 Deliberation only adds signal if the seats do not converge for the wrong
@@ -75,18 +86,39 @@ exactly one of:
 
 `authority.on_consent` decides what a pass is worth: `human` (the default)
 escalates the passed proposal for a human signature; `proceed` lets it flow
-onward. Supplying both `--then <team>` and `--sign` bridges an authorized pass
-straight into `omd team run <team>` with the decided proposal as the pipeline's
-requirements. `--then` without `--sign` never launches anything.
+onward.
+
+`--then <team>` bridges an authorized pass straight into that team's pipeline,
+with the decided proposal as the pipeline's requirements. The bridge fires only
+when the closure is `passed` and the decision is authorized:
+
+| `on_consent` | Closure | Bridges with `--then` |
+| ------------ | --------- | ------------------------------- |
+| `human` | `passed` | Only together with `--sign` |
+| `proceed` | `passed` | Yes, no signature needed |
+| either | `blocked` or `bankrupt` | Never |
+
+<Warning>
+  `--sign` is an assertion by whoever runs the command. Nothing verifies that a
+  human actually signed off.
+</Warning>
+
+The team named by `--then` is loaded and validated before the deliberation
+starts, so a malformed team fails the command immediately — even in a run whose
+closure would never have reached the bridge.
 
 ## The decision record
 
 Every closure — passed, blocked, or bankrupt — writes a durable
-`decision.json` under `.omd/deliberations/`: the question, the proposal and its
-source, the consent result, the authority applied, supporting arguments with
-endorsement counts, the complete objection ledger, assumptions, and the
-conditions under which the decision should be reconsidered. Dissent is always
-carried; nothing in a council declaration can suppress it.
+`decision.json` under `.omd/deliberations/<question-slug>-<timestamp>/`: the
+question, the proposal and its source, the consent result, the authority
+applied, supporting arguments with endorsement counts, the complete objection
+ledger, assumptions, and the conditions under which the decision should be
+reconsidered. Dissent is always carried; nothing in a council declaration can
+suppress it.
+
+The command does not print where the record landed, so that path is how you
+find it. See [Runtime files](/docs/reference/runtime-files).
 
 <Card title="Council declaration reference" icon="book" href="/docs/reference/council-declaration" horizontal>
   Every declaration key, the seat position contract, and defaults.

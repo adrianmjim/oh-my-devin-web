@@ -9,6 +9,19 @@ pipeline is the fixed three-stage sequence **architect → executor → reviewer
 one role instance per stage, each in its own git worktree, with a binary human
 gate after every stage.
 
+## Running without a manifest
+
+`omd setup` installs a `default` team, so you can run a pipeline before writing
+any manifest of your own. Omit the team name and `omd` uses it:
+
+```bash
+omd team run "Add CSV export to the reports page"
+```
+
+The installed default declares the three stages in order, moving
+architect → executor → reviewer, with the reviewer's approval reaching `done`
+and its rejection routing back to the executor.
+
 ## Declaring a team
 
 A team lives at `.devin/teams/<name>.yaml`:
@@ -65,11 +78,15 @@ After each successful stage, `omd` presents the stage result and prompts:
 Approve this stage? [approve/reject]
 ```
 
-`approve` (or `a`, `y`, `yes`) follows the stage's `then`/`on_passed`
-transition; `reject` (or `r`, `n`, `no`) follows `on_blocked` — for a
-reviewer, that routes work back to the executor as a fresh run. Any other
-answer, or end of input, halts the pipeline. Answer the gate interactively at
-the prompt; input piped ahead of the prompt is not reliably consumed.
+`approve` (or `a`, `y`, `yes`) follows the stage's `on_passed` transition,
+falling back to `then`; `reject` (or `r`, `n`, `no`) follows `on_blocked` — for
+a reviewer, that routes work back to the executor as a fresh run. A rejection
+with no `on_blocked` transition halts, as does any other answer or end of
+input. Answer the gate interactively at the prompt; input piped ahead of the
+prompt is not reliably consumed.
+
+There is no detached form: `omd team run --detach` is rejected, because the
+gates need a live session to answer them.
 
 ## Isolation and integration
 
@@ -87,10 +104,16 @@ an unanswered gate. The report lists each stage with its result and gate
 decision; `--json` emits `team`, `task`, `outcome`, `exitCode`, `haltedAt`,
 and a `stages` array.
 
+A team run creates `.omd/runs/<run-id>/` like a single-role run, so a pipeline
+in flight can be inspected with [`omd status`](/docs/concepts/runs).
+
 <Note>
-  `count` and `strategy` are validated in the manifest, but execution today
-  runs one instance per stage; multi-instance fan-out is reserved for a future
-  release.
+  `count` and `strategy` are validated in the manifest but not yet exercised:
+  execution runs one instance per stage and nothing reads either field.
+  Multi-instance fan-out is reserved for a future release.
+
+  `on_bankrupt` is accepted by the validator and never consulted — a failed or
+  budget-exhausted stage halts the pipeline before any transition is resolved.
 </Note>
 
 <Card title="Team definition reference" icon="book" href="/docs/reference/team-definition" horizontal>

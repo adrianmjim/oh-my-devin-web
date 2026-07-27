@@ -1,0 +1,204 @@
+---
+title: "Skills"
+description: "The eight skills omd setup installs into a Devin session: the delegation hinge, the installer, and the six modes."
+sidebarTitle: "Skills"
+---
+
+`omd setup` installs eight skills under `.devin/skills/`. They are what a live
+Devin session reads to know that the layer exists and how to reach it: two
+skills that bridge into the CLI, and six that name a way of working.
+
+Skills are instructions for the session, not code that `omd` runs. Their
+frontmatter — tools, permissions, triggers — is a contract for the Devin CLI to
+enforce; `omd` itself never reads a `SKILL.md` back.
+
+## Where a session finds them
+
+You do not have to package or register anything. `omd setup` writes the skills
+straight into the directories Devin already scans, so they are available in the
+next session you start.
+
+| Install | Skills land in | Available in |
+| ------------------------ | ---------------------------------- | ------------------------- |
+| `omd setup` | `.devin/skills/<name>/SKILL.md` | That project |
+| `omd setup --level=user` | `~/.config/devin/skills/<name>/SKILL.md` | Every project on the machine |
+
+Both are locations Devin
+[documents](https://docs.devin.ai/cli/extensibility/skills/overview) as skill
+discovery paths — project-scoped and global respectively. Because Devin Local
+in Devin Desktop shares the CLI's agent harness, the same two installs serve
+the terminal and the Desktop app. Nothing else is needed: the plugin channel is
+an alternative distribution route, not a prerequisite.
+
+<Warning>
+  Cascade, the other agent in Devin Desktop, scans different directories —
+  `.windsurf/skills/`, `~/.codeium/windsurf/skills/`, and the cross-agent
+  `.agents/skills/` — and not `.devin/skills/`. An `omd setup` install is not
+  discovered by Cascade. See
+  [Devin Desktop](/docs/concepts/devin-desktop).
+</Warning>
+
+## How they are invoked
+
+Devin invokes a skill in two ways: on its own, when your request matches the
+skill's description, or explicitly, when you name it.
+
+Every skill `omd` installs is written for the first path. All eight declare
+`triggers: [model]`, so the intended use is to describe what you want and let
+the session reach for the right skill:
+
+```text
+Delegate the CSV export work to the executor role.
+```
+
+matches `omd-delegate`'s description and hands the task to the contractual
+lane. The mode skills work the same way — asking to run the team pipeline
+matches `team`, asking to check an installation matches `omd-install`.
+
+<Note>
+  Devin documents the `triggers` default as `["user", "model"]`, and documents
+  `["user"]` as the way to disable autonomous invocation. It does not document
+  the `["model"]`-only case that these skills declare, and the explicit
+  invocation syntax differs across Devin's own surfaces. Treat
+  description-matched invocation as the supported path here, and check Devin's
+  documentation for the explicit syntax on the surface you are using.
+</Note>
+
+Skills installed through the plugin channel are namespaced instead, as
+`/oh-my-devin:<skill>`.
+
+## The delegation hinge
+
+`omd-delegate` is the skill that turns a conversation into a contractual run. It
+prescribes the correspondent pattern:
+
+1. Launch detached — `omd run <role> "<task>" --detach` — and keep the single
+   run id it prints.
+2. Poll `omd status <run-id> --json` at a restrained cadence: when you next
+   write, and at natural pauses. Never in a tight loop.
+3. Report only what the snapshot carries — stage and turn counters, validation
+   state, liveness, and the terminal outcome.
+
+The session never quotes the role session's own conversation. As the skill puts
+it, the snapshot is the only channel, and it never carries transcript content.
+That is what keeps context isolation intact while still letting you follow the
+work.
+
+### Gates are presented, never actuated
+
+When a snapshot reports a pending gate, the skill instructs the session to name
+the awaited boundary and state that the decision happens outside the
+conversation. It must not decide the gate itself — it presents it.
+
+<Note>
+  In the shipped CLI a gate decision is read only from the stdin of a
+  foreground `omd team run` or `omd council run`, which prompts
+  `Approve this stage? [approve/reject]`. There is no separate command for
+  deciding a gate, and single-role detached runs — the only launch this skill
+  instructs — do not raise gates, so `pendingGate` stays null on them. The
+  presentation rule matters for what the session must not do, rather than for
+  something you will routinely see.
+</Note>
+
+## The installer
+
+`omd-install` keys on whether the `omd` binary is present rather than on how it
+was installed, and treats the package names `oh-my-devin` and `ohmydevin` as the
+same thing.
+
+- Present: report `omd --version`, then `omd doctor`.
+- Absent: run the inline installer, then re-check the version.
+
+In both cases it presents `omd setup` as the next step but must not run it —
+where the layer goes is a per-project decision that stays with you.
+
+## The six modes
+
+Each mode is a skill; five of them also carry persistent mode state that the
+session hooks read.
+
+| Mode | What it runs | Mode state |
+| ----------- | ----------------------------------- | ---------- |
+| `team` | `omd team run <team> "<task>"` | Yes |
+| `autopilot` | `omd team run <team> "<task>"` | Yes |
+| `ralph` | `omd run <role> "<task>"` | Yes |
+| `plan` | Nothing yet | Yes |
+| `verify` | Nothing yet | Yes |
+| `deep-dive` | Nothing | No |
+
+A mode skill sets its state on activation with `omd mode set <name>` and clears
+it with `omd mode clear` once its criteria are met. See
+[The in-session layer](/docs/concepts/in-session-layer) for what the hooks do
+with that state.
+
+### team
+
+Runs the declared pipeline and is candid about its own scope: the pipeline owns
+orchestration, and the skill is only the in-session entry point to it.
+
+### autopilot
+
+Runs the same command as `team`.
+
+<Warning>
+  Autopilot's distinguishing behavior is not implemented. The shipped skill
+  states that the auto-approve gate policy is not yet fixed and that until it
+  is, autopilot behaves as the human-gated pipeline. It owns no orchestration
+  of its own.
+</Warning>
+
+### Working without a named team
+
+`team` and `autopilot` share the same fallback when no team is named. First
+choice is the nameless launch, `omd team run "<task>"`, which runs the
+`default` team installed by setup.
+
+Otherwise the session may synthesize a team declaration under `.devin/teams/`,
+under strict rules:
+
+- Compose only from roles that `omd roles list --json` reports. Never invent a
+  role.
+- Use exactly the fixed `architect` → `executor` → `reviewer` stages.
+- Never name the declaration `default`, and never overwrite an existing one.
+- If a needed role is missing, stop and report it with a suggestion to create
+  it — never author a role definition.
+
+After a terminal outcome the session offers to keep or delete a declaration it
+synthesized. The installer-owned `default` team is exempt.
+
+### ralph
+
+Runs a single role in the foreground. The name suggests an iterate-until-done
+loop, but the shipped skill is explicit that it owns no loop: `omd run` owns the
+validate-repair loop, and that loop is capped at a single repair attempt.
+
+### plan and verify
+
+<Warning>
+  Both are non-normative direction, not shipped behavior. Each skill states
+  that its concrete `omd` primitive and lane are not yet fixed. `plan`
+  instructs a placeholder `omd run <planning-role>` for a role that does not
+  ship, and `verify` instructs no run command at all.
+
+  Their only working effect today is the mode state they set, and therefore the
+  hook's stop gate and context injection.
+</Warning>
+
+### deep-dive
+
+The one skill that stays entirely in the conversational lane. It reads and
+greps, carries no write contract, and instructs no `omd` command, so it never
+enters the validated-artifact path.
+
+It is also the one mode with no persistent state: `omd mode set deep-dive` is a
+usage error, and the accepted mode names are `autopilot`, `ralph`, `team`,
+`plan`, and `verify`.
+
+<Card
+  title="Devin Desktop and the plugin channel"
+  icon="desktop"
+  href="/docs/concepts/devin-desktop"
+  horizontal
+>
+  Installing the same skills beyond a single project.
+</Card>
