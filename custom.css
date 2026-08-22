@@ -17,6 +17,7 @@
   --omd-bg: #ffffff;
   --omd-panel: #faf9f5;
   --omd-line: rgba(27, 32, 48, 0.12);
+  --omd-card: #ffffff;
   --omd-term-bg: #0e1220;
   --omd-term-fg: #edebe0;
   --omd-term-muted: rgba(237, 235, 224, 0.6);
@@ -39,6 +40,7 @@
   --omd-panel: rgba(237, 235, 224, 0.04);
   --omd-line: rgba(237, 235, 224, 0.14);
   --omd-ledger: #8fbf9f;
+  --omd-card: rgba(237, 235, 224, 0.06);
 }
 
 .omd-landing *,
@@ -58,7 +60,7 @@
 .omd-landing .omd-hero {
   position: relative;
   overflow: hidden;
-  padding: 6rem 0 4.5rem;
+  padding: 5rem 0 4.5rem;
   text-align: center;
   border-bottom: 1px solid var(--omd-line);
 }
@@ -84,7 +86,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.3rem 0.8rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
   border: 1px solid var(--omd-line);
   border-radius: 999px;
   font-size: 0.8125rem;
@@ -101,8 +103,8 @@
 }
 
 .omd-landing .omd-title {
-  margin: 0 0 1.25rem;
-  font-size: clamp(2.25rem, 6vw, 3.75rem);
+  margin: 0 0 1rem;
+  font-size: clamp(2.25rem, 6vw, 3.25rem);
   font-weight: 650;
   line-height: 1.08;
   letter-spacing: -0.03em;
@@ -113,9 +115,9 @@
 }
 
 .omd-landing .omd-lede {
-  max-width: 46rem;
-  margin: 0 auto 2.25rem;
-  font-size: clamp(1.0625rem, 2.2vw, 1.25rem);
+  max-width: 42.5rem;
+  margin: 0 auto 1.75rem;
+  font-size: 1.125rem;
   color: var(--omd-fg-muted);
 }
 
@@ -163,6 +165,104 @@
 
 .omd-landing .omd-btn-secondary:hover {
   background: var(--omd-panel);
+}
+
+/* ---------- structure diagram ---------- */
+
+.omd-landing .omd-diagram {
+  margin-top: 3rem;
+  padding: 2rem;
+  border: 1px solid var(--omd-line);
+  border-radius: 0.875rem;
+  background: var(--omd-panel);
+  overflow-x: auto;
+}
+
+.omd-landing .omd-diagram-svg {
+  display: block;
+  width: 100%;
+  min-width: 900px;
+  height: auto;
+}
+
+.omd-landing .omd-dg-kicker {
+  fill: var(--omd-seal);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.44px;
+}
+
+.omd-landing .omd-dg-caption {
+  fill: var(--omd-fg-muted);
+  font-size: 14px;
+}
+
+.omd-landing .omd-dg-frame,
+.omd-landing .omd-dg-ring {
+  fill: none;
+  stroke: var(--omd-fg);
+  stroke-opacity: 0.35;
+  stroke-width: 1.5;
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+}
+
+.omd-landing .omd-dg-tag {
+  fill: var(--omd-fg-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.32px;
+}
+
+.omd-landing .omd-dg-card {
+  fill: var(--omd-card);
+  stroke: var(--omd-line);
+}
+
+.omd-landing .omd-dg-role {
+  fill: var(--omd-fg);
+  font-size: 15px;
+  font-weight: 640;
+}
+
+.omd-landing .omd-dg-artifact {
+  fill: var(--omd-fg-muted);
+  font-size: 11.5px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.omd-landing .omd-dg-link {
+  stroke: var(--omd-fg);
+  stroke-opacity: 0.35;
+  stroke-width: 1.5;
+}
+
+.omd-landing .omd-dg-gate {
+  fill: var(--omd-seal);
+}
+
+.omd-landing .omd-dg-gate-label,
+.omd-landing .omd-dg-note {
+  fill: var(--omd-fg-muted);
+  font-size: 12.5px;
+}
+
+.omd-landing .omd-dg-divider {
+  stroke: var(--omd-line);
+}
+
+.omd-landing .omd-dg-seat {
+  fill: var(--omd-fg);
+}
+
+.omd-landing .omd-dg-seat-proposer {
+  fill: var(--omd-seal);
+}
+
+.omd-landing .omd-dg-record {
+  fill: var(--omd-fg);
+  font-size: 13px;
+  font-weight: 640;
 }
 
 /* ---------- section scaffolding ---------- */
@@ -358,7 +458,7 @@
 
 @media (max-width: 640px) {
   .omd-landing .omd-hero {
-    padding: 4rem 0 3.25rem;
+    padding: 3.5rem 0 3.25rem;
   }
 
   .omd-landing .omd-section {
@@ -376,6 +476,10 @@
 
   .omd-landing .omd-shell {
     padding: 0 1.15rem;
+  }
+
+  .omd-landing .omd-diagram {
+    padding: 1rem;
   }
 
   .omd-landing .omd-cta-row {

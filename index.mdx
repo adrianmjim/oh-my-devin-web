@@ -4,6 +4,8 @@ description: "An organizational layer over the Devin CLI: functional roles, decl
 mode: "custom"
 ---
 
+import { StructureDiagram } from "/snippets/structure-diagram.jsx";
+
 export const terminal = [
   { k: "cmd", t: "omd doctor" },
   { k: "pass", t: "devin-cli: devin executable found on PATH" },
@@ -103,6 +105,28 @@ export const features = [
         View on GitHub
       </a>
     </div>
+    <div className="omd-diagram">
+      <StructureDiagram />
+    </div>
+  </div>
+</section>
+
+<section className="omd-section">
+  <div className="omd-shell">
+    <div className="omd-section-head">
+      <h2 className="omd-section-title">What the layer adds</h2>
+      <p className="omd-section-sub">
+        A single long session has no first-class model for any of this.
+      </p>
+    </div>
+    <div className="omd-features">
+      {features.map((f) => (
+        <div className="omd-feature" key={f.title}>
+          <h3 className="omd-feature-title">{f.title}</h3>
+          <p className="omd-feature-body">{f.body}</p>
+        </div>
+      ))}
+    </div>
   </div>
 </section>
 
@@ -173,25 +197,6 @@ export const features = [
       hands a validated artifact across each boundary. A detached run returns a
       run id you can poll with <code>omd status</code>.
     </p>
-  </div>
-</section>
-
-<section className="omd-section">
-  <div className="omd-shell">
-    <div className="omd-section-head">
-      <h2 className="omd-section-title">What the layer adds</h2>
-      <p className="omd-section-sub">
-        A single long session has no first-class model for any of this.
-      </p>
-    </div>
-    <div className="omd-features">
-      {features.map((f) => (
-        <div className="omd-feature" key={f.title}>
-          <h3 className="omd-feature-title">{f.title}</h3>
-          <p className="omd-feature-body">{f.body}</p>
-        </div>
-      ))}
-    </div>
   </div>
 </section>
 
